@@ -31,6 +31,9 @@ func Load(role string) (Config, error) {
 	if role != "gateway" && role != "worker" {
 		return c, errors.New("role must be gateway or worker")
 	}
+	if err := loadQQBinding(role, &c); err != nil {
+		return c, err
+	}
 	if strings.TrimSpace(c.AppID) == "" {
 		return c, errors.New("QQ_APP_ID is required")
 	}

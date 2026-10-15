@@ -34,6 +34,24 @@ for module in graph["modules"]:
         if not p.is_file() or hashlib.sha256(p.read_bytes()).hexdigest() != item["sha256"]:
             errors.append(f"license digest mismatch: {item['path']}")
         checked += 1
+npm = json.loads((root / "third_party/licenses/npm/PACKAGES.json").read_text())
+lock = json.loads((root / "onboard/package-lock.json").read_text())
+for package in npm["packages"]:
+    installed = lock["packages"].get("node_modules/" + package["name"], {})
+    if any(installed.get(k) != package[k] for k in ("version", "resolved", "integrity")):
+        errors.append(f"npm provenance differs from lock: {package['name']}")
+    for item in package["evidence"]:
+        p = root / item["path"]
+        if not p.is_file() or hashlib.sha256(p.read_bytes()).hexdigest() != item["sha256"]:
+            errors.append(f"npm evidence digest mismatch: {item['path']}")
+        checked += 1
+version = (root / "VERSION").read_text().strip()
+for filename in ("onboard/package.json", "onboard/package-lock.json"):
+    if json.loads((root / filename).read_text())["version"] != version:
+        errors.append(f"release version mismatch: {filename}")
+for filename in ("compose.yaml", "compose.qr.yaml", "cmd/qq-tavern/main.go", "README.md", "CHANGELOG.md"):
+    if version not in (root / filename).read_text():
+        errors.append(f"release version missing: {filename}")
 if errors:
     raise SystemExit("\n".join(errors))
-print(f"Tracked-file credential checks passed; {checked} module license digests verified.")
+print(f"Tracked-file credential checks passed; {checked} license/evidence digests verified.")
