@@ -1,0 +1,34 @@
+{
+  "packages": [
+    {
+      "name": "@tencent-connect/qqbot-connector",
+      "version": "1.0.1",
+      "license": "MIT",
+      "resolved": "https://registry.npmjs.org/@tencent-connect/qqbot-connector/-/qqbot-connector-1.0.1.tgz",
+      "integrity": "sha512-w+TdH+hvtcohAPADzE7ajgwbvWnI4ZhR+38YJXn1XCis9pW6CM+apaEtPaCGgaA4hjvWvL8ksg6+CMpuu+vlkw==",
+      "evidence": [
+        {
+          "path": "third_party/licenses/npm/@tencent-connect__qqbot-connector@1.0.1/package.json",
+          "sha256": "5e5cf7d30529bed6f21d71e59729e49cce71564a8e26e6b159a7b727449b18bd"
+        }
+      ]
+    },
+    {
+      "name": "qrcode-terminal",
+      "version": "0.12.0",
+      "license": "Apache-2.0 AND MIT",
+      "resolved": "https://registry.npmjs.org/qrcode-terminal/-/qrcode-terminal-0.12.0.tgz",
+      "integrity": "sha512-EXtzRZmC+YGmGlDFbXKxQiMZNwCLEO6BANKXG4iCtSIM0yqc/pappSx3RIKr4r0uh5JsBckOXeKrB3Iz7mdQpQ==",
+      "evidence": [
+        {
+          "path": "third_party/licenses/npm/qrcode-terminal@0.12.0/package.json",
+          "sha256": "25c89a03126b144a0080c0200a25037d0f2fb0a49177506776cfb492210955cd"
+        },
+        {
+          "path": "third_party/licenses/npm/qrcode-terminal@0.12.0/LICENSE",
+          "sha256": "b3c7a2fadb2515b8106eae58439a4b9c0581a4eaa88d6a265701f8d4dd7dadb8"
+        }
+      ]
+    }
+  ]
+}

@@ -12,11 +12,11 @@ services:
 
   gateway:
     build: .
-    image: qq-tavern:0.1.0-dev
+    image: qq-tavern:0.2.0-dev
     command: [gateway]
     environment:
-      QQ_APP_ID: ${QQ_APP_ID:?Set QQ_APP_ID in .env}
-      QQ_APP_SECRET: ${QQ_APP_SECRET:?Set QQ_APP_SECRET in .env}
+      QQ_APP_ID: ${QQ_APP_ID:-}
+      QQ_APP_SECRET: ${QQ_APP_SECRET:-}
       QQ_OBSERVE_GROUP_MESSAGES: ${QQ_OBSERVE_GROUP_MESSAGES:-false}
       INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:?Generate INTERNAL_API_TOKEN in .env}
       REDIS_URL: redis://redis:6379/0
@@ -41,10 +41,10 @@ services:
       options: {max-size: 10m, max-file: "3"}
 
   worker:
-    image: qq-tavern:0.1.0-dev
+    image: qq-tavern:0.2.0-dev
     command: [worker]
     environment:
-      QQ_APP_ID: ${QQ_APP_ID:?Set QQ_APP_ID in .env}
+      QQ_APP_ID: ${QQ_APP_ID:-}
       INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:?Generate INTERNAL_API_TOKEN in .env}
       MODEL_BASE_URL: ${MODEL_BASE_URL:?Set MODEL_BASE_URL in .env}
       MODEL_API_KEY: ${MODEL_API_KEY:?Set MODEL_API_KEY in .env}

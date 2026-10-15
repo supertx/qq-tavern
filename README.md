@@ -1,10 +1,10 @@
 # qq-tavern
 
-可自行部署的 QQ 机器人：角色、世界书、群规则、摘要和个人记忆均按会话隔离，直接在 QQ 内设置。当前版本为 `0.1.0-dev`，私有开发阶段；尚未进行真实 QQ 账号验收。
+可自行部署的 QQ 机器人：角色、世界书、群规则、摘要和个人记忆均按会话隔离，直接在 QQ 内设置。当前版本为 `0.2.0-dev`，私有开发阶段；尚未进行真实 QQ 账号验收。
 
 ## 快速启动
 
-准备 Docker Compose、独立 QQ 机器人 AppID/AppSecret，以及支持 Responses 或 Chat Completions 的模型接口。
+准备 Docker Compose 和支持 Responses 或 Chat Completions 的模型接口。QQ 连接有两种方式：**手机 QQ 扫码授权机器人**，或手动填写 AppID/AppSecret。扫码连接的是 QQ 官方机器人，不是登录个人 QQ 账号。
 
 ```sh
 git clone https://github.com/supertx/qq-tavern.git
@@ -13,12 +13,33 @@ cp .env.example .env
 openssl rand -hex 32
 ```
 
-将生成的随机串填入 `.env` 的 `INTERNAL_API_TOKEN`，填写 `QQ_APP_ID`、`QQ_APP_SECRET`、`MODEL_BASE_URL`、`MODEL_API_KEY` 和 `MODEL_NAME`。模型服务需要支持所选协议、工具调用和配置的思考强度。默认使用 Responses、`medium`；Chat Completions 使用 `MODEL_API_MODE=chat_completions`。不会在请求失败时自动切换协议。
+将生成的随机串填入 `.env` 的 `INTERNAL_API_TOKEN`，填写 `MODEL_BASE_URL`、`MODEL_API_KEY` 和 `MODEL_NAME`。模型服务需要支持所选协议、工具调用和配置的思考强度。默认使用 Responses、`medium`；Chat Completions 使用 `MODEL_API_MODE=chat_completions`。不会在请求失败时自动切换协议。
+
+### 方式一：扫码连接
+
+`.env` 的 `QQ_APP_ID`、`QQ_APP_SECRET` 留空，然后在可显示二维码的终端运行：
 
 ```sh
-docker compose up -d --build
-docker compose ps
-docker compose logs --tail=100 gateway worker
+./scripts/start.sh qr
+```
+
+启动脚本先运行一次性登录容器，在终端显示二维码。用手机 QQ 扫码并按页面完成机器人授权；成功后自动启动 Redis、Gateway、Worker。QQ 账号需要具备对应的机器人管理／授权资格，具体以 QQ 扫码页面为准。五分钟内未完成则退出，可重新运行。重启执行同一命令，默认复用保存的绑定，无需再次扫码。
+
+### 方式二：手动配置
+
+在 `.env` 再填写 `QQ_APP_ID` 和 `QQ_APP_SECRET`，然后运行：
+
+```sh
+./scripts/start.sh manual
+```
+
+直接运行 `./scripts/start.sh` 会显示两种方式的选择菜单。两种方式均在启动服务前检查配置；手动方式也兼容原有的 `docker compose up -d --build`。
+
+查看扫码部署状态和日志时带上扫码覆盖文件；手动部署省略第二个 `-f`：
+
+```sh
+docker compose -f compose.yaml -f compose.qr.yaml ps
+docker compose -f compose.yaml -f compose.qr.yaml logs --tail=100 gateway worker
 ```
 
 Gateway 健康检查要求 QQ 已连接。连接失败时 Worker 会等待；检查机器人凭据、QQ 平台权限、IP 白名单和网络。接收所有群消息需另获 QQ 权限，再设置 `QQ_OBSERVE_GROUP_MESSAGES=true`；默认只处理机器人收到的群 @ 和私聊事件。
@@ -80,7 +101,21 @@ flowchart LR
 
 默认健康检查端口仅绑定本机：Gateway `18700`、Worker `18710`。用不同 Compose 项目名和端口可部署多套，数据卷没有固定全局名称。不要让两套 Gateway 使用同一真实机器人并发接收事件。
 
-备份前停止该项目服务，再备份三个项目数据卷；SQLite 文件可能含 WAL，需要整体保留。恢复时使用对应版本镜像。数据库会拒绝高于支持版本的迁移号；升级前备份，不能用旧程序直接读新数据库。
+扫码模式将凭据保存在项目独立的 `qq-private` 卷，文件权限为 `0600`；Gateway 只读挂载完整凭据，Worker 只读挂载 `qq-public` 卷中的 AppID。二维码只显示在前台终端，登录容器关闭 Docker 日志记录。不要分享二维码、凭据卷或 `.env`。
+
+需要更换机器人时运行 `./scripts/start.sh qr --rebind`。脚本会先停止 Gateway 和 Worker；取消扫码或授权失败不会覆盖原绑定。失败后运行 `./scripts/start.sh qr` 可用原绑定恢复服务。身份变更后使用新的机器人作用域，旧历史仍保留在原作用域。不要同时运行两个启动脚本。
+
+若登录容器被强制杀死，重试时可能提示登录锁已存在。先用下面第一条命令确认没有仍在运行的 `qq-login` 容器，再执行第二条清理锁并重试。仅删除锁，不删除绑定或历史卷：
+
+```sh
+docker compose -f compose.yaml -f compose.qr.yaml --profile setup ps -a
+docker compose -f compose.yaml -f compose.qr.yaml run --rm --no-deps --entrypoint node qq-login -e 'require("node:fs").rmSync("/binding/private/.login-lock", {recursive:true,force:true})'
+./scripts/start.sh qr
+```
+
+扫码部署执行 Compose 启停、升级和重建时始终使用 `-f compose.yaml -f compose.qr.yaml`；漏掉覆盖文件会改回手动凭据模式。切回手动模式前填写 `.env` 的 QQ 凭据，再执行 `./scripts/start.sh manual`。
+
+备份前停止该项目服务，再备份三个业务数据卷；扫码模式额外备份两个绑定卷。SQLite 文件可能含 WAL，需要整体保留。恢复时使用对应版本镜像。数据库会拒绝高于支持版本的迁移号；升级前备份，不能用旧程序直接读新数据库。
 
 开发需要 Go 1.23+；CI 和容器使用 Go 1.27。安装 `redis-server` 可执行文件以运行完整集成测试：
 
@@ -88,11 +123,14 @@ flowchart LR
 go test -race -count=1 -timeout=180s ./...
 go vet ./...
 go build ./cmd/qq-tavern
+npm --prefix onboard ci --ignore-scripts
+npm --prefix onboard test
+python3 scripts/start_test.py
 ```
 
-测试使用临时 SQLite、临时 Redis、模拟 QQ HTTP/WebSocket 和模拟模型服务，不需要真实账号或模型费用。CI 安装 Redis 并构建容器。环境变量检查可执行 `ROLE=worker qq-tavern check` 或 `ROLE=gateway qq-tavern check`。
+测试使用临时 SQLite、临时 Redis、模拟 QQ HTTP/WebSocket 和模拟模型服务，不需要真实账号或模型费用。扫码辅助工具的开发测试另需 Node.js 22+。CI 安装 Redis、测试两种启动方式并构建应用和登录容器。构建两个镜像后，可运行 `python3 scripts/test_login_docker.py` 验证真实容器的权限和凭据交接；该测试只使用合成凭据，容器禁用网络。环境变量检查可执行 `ROLE=worker qq-tavern check` 或 `ROLE=gateway qq-tavern check`。
 
-发布前需更新 [VERSION](VERSION)、[变更日志](CHANGELOG.md)，执行测试、容器构建和来源／凭据检查。真实 QQ 接入验收完成后再发布稳定版本；当前仓库保持私有。
+发布前需更新 [VERSION](VERSION)、[变更日志](CHANGELOG.md)，执行测试、容器构建和来源／凭据检查。当前已验证扫码会话创建和模拟凭据落盘；完整手机扫码授权与真实 QQ 收发仍待独立测试机器人验收。真实 QQ 接入验收完成后再发布稳定版本；当前仓库保持私有。
 
 ## 来源与许可
 

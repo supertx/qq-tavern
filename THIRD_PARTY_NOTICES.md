@@ -59,11 +59,23 @@ SQLite 声明仅提取对应模块生成文件中的完整许可注释块，没�
 
 若后续添加测试、生成器、目标平台或工具导致它们进入本项目实际分发集合，应重新读取相应版本的许可证并补充原文，不能沿用“未纳入”结论。
 
+## 扫码容器的 npm 依赖
+
+仅登录辅助容器运行这些依赖，Go Gateway／Worker 不加载它们。版本、下载来源、npm 完整性值及许可证据摘要见 [PACKAGES.json](third_party/licenses/npm/PACKAGES.json)，实际安装由 [package-lock.json](onboard/package-lock.json) 固定，禁用 npm 生命周期脚本。
+
+| 包 | 版本 | 许可与保留内容 |
+| --- | --- | --- |
+| `@tencent-connect/qqbot-connector` | `1.0.1` | 官方发布包的 [package.json](third_party/licenses/npm/@tencent-connect__qqbot-connector@1.0.1/package.json) 明确声明 MIT；包内未附独立 LICENSE 或版权人文本，另保留[标准 MIT 许可正文](third_party/licenses/npm/MIT-permission.txt)，不虚构版权声明 |
+| `qrcode-terminal` | `0.12.0` | [Apache-2.0 完整许可及 QRCode for JavaScript 的 MIT 版权声明](third_party/licenses/npm/qrcode-terminal@0.12.0/LICENSE)，QRCode 作者为 Kazuhiko Arase；MIT 许可正文见上方链接 |
+
+SDK 包来源：[官方 npm 包](https://www.npmjs.com/package/@tencent-connect/qqbot-connector/v/1.0.1)。本次核对的新版 `1.2.0` 声明 `UNLICENSED`，本项目不打包该版本。扫码 SDK 是上游发布的构建产物，保持原样通过 npm 引入，没有复制其实现到本项目自有源码。
+
 ## 容器和外部组件
 
 - Compose 中的 `redis:7.4-alpine` 是单独拉取和运行的上游镜像。Redis 7.4 使用 RSALv2 或 SSPLv1，详见 [Redis 官方许可证说明](https://redis.io/legal/licenses/)与 [7.4 版本完整许可](https://github.com/redis/redis/blob/7.4/LICENSE.txt)。本项目 MIT 许可不覆盖 Redis，也不将 Redis 7.4 描述为 BSD 版本。
 - 构建镜像 `golang:1.27-alpine` 属于上游工具链和 Alpine 发行版，不作为本项目源码重新许可。最终应用镜像使用 `scratch`，只带应用、证书、数据目录和许可材料。
 - 从 Alpine 复制的 Mozilla CA 证书数据沿用 MPL-2.0，已保留 [MPL-2.0 全文](third_party/licenses/mozilla/MPL-2.0.txt)，原文来自 [Mozilla 官方许可文本](https://www.mozilla.org/media/MPL/2.0/index.txt)。Alpine 的 [ca-certificates-bundle 包信息](https://pkgs.alpinelinux.org/package/edge/main/x86_64/ca-certificates-bundle)将包整体标记为 MPL-2.0 AND MIT；本项目最终镜像只复制 `/etc/ssl/certs/ca-certificates.crt`，没有复制证书更新工具。实际构建使用的包版本记录在镜像内 `/licenses/build-packages.txt`。证书数据及构建来源可通过 [Alpine ca-certificates 打包仓库](https://gitlab.alpinelinux.org/alpine/aports/-/tree/master/main/ca-certificates)及其中标明的 Mozilla 来源取得。
+- 登录镜像基于 `node:22-alpine`，Node.js、其捆绑组件和 Alpine 包保留上游许可；镜像内另保存 Node.js 对应版本的完整 LICENSE。
 - QQ、模型、SearXNG、图片和语音服务是外部服务或单独部署的软件，其许可及服务条款由对应上游提供。配置接口地址不代表本项目包含这些服务的源码。
 
 ## 更新方法

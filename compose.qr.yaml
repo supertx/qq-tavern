@@ -1,0 +1,37 @@
+# Use together with compose.yaml, preferably via ./scripts/start.sh qr.
+services:
+  qq-login:
+    profiles: [setup]
+    build:
+      context: .
+      dockerfile: onboard/Dockerfile
+    image: qq-tavern-login:0.2.0-dev
+    volumes:
+      - qq-private:/binding/private
+      - qq-public:/binding/public
+    stdin_open: true
+    tty: true
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    restart: "no"
+    logging:
+      driver: none
+  gateway:
+    environment:
+      QQ_APP_ID: ""
+      QQ_APP_SECRET: ""
+      QQ_CREDENTIALS_FILE: /binding/private/credentials.json
+    volumes:
+      - qq-private:/binding/private:ro
+  worker:
+    environment:
+      QQ_APP_ID: ""
+      QQ_APP_ID_FILE: /binding/public/app-id
+    volumes:
+      - qq-public:/binding/public:ro
+
+volumes:
+  qq-private:
+  qq-public:

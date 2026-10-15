@@ -8,3 +8,5 @@ coverage.out
 *.db*
 *.pem
 .DS_Store
+
+node_modules/

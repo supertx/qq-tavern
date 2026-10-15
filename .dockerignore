@@ -7,3 +7,5 @@ bin
 coverage.out
 *.db*
 *.pem
+
+node_modules/

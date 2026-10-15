@@ -14,6 +14,7 @@
 | `internal/state`、`internal/tavern` | 根据本项目角色、世界书、注释、摘要、隔离和命令规格独立实现；无 SillyTavern 源码 |
 | `internal/worker`、`internal/netguard` | 根据本项目整轮预算、工具权限、发送去重和外部访问要求独立实现 |
 | `internal/config`、`cmd`、构建与测试文件 | 为独立部署新编写，不依赖订单、套餐、控制器、节点代理或线上配置 |
+| `onboard`、`scripts/start.sh` | 为本项目独立编写终端扫码与启动流程；通过官方 SDK 公开 API 获取凭据，没有复制旧项目登录服务 |
 | Go 外部模块及许可文本 | 通过 Go Modules 引入，保留原许可证；详见 [第三方声明](../THIRD_PARTY_NOTICES.md) |
 
 本项目未将来源或授权不明的旧模块导入后重新标注为 MIT。引用公开协议与概念不代表对相关上游品牌、服务或内容拥有版权，也不代表上游认可或维护本项目。
@@ -44,3 +45,9 @@
 第三方许可文件来自对应版本的 Go 模块缓存，保持原文；只提取 SQLite 的版权声明块，没有将第三方实现代码复制到自有源码。Redis Docker 镜像是单独的上游组件，不能随本项目重新声明为 MIT。
 
 后续引入代码或依赖时，需要同步更新来源记录、版本与许可证。引入旧项目模块前必须先取得明确授权依据；角色卡、世界书和聊天记录也需要各自的来源与使用授权，不能因为机器人开源而一并公开。
+
+## 扫码 SDK
+
+扫码容器精确依赖 `@tencent-connect/qqbot-connector@1.0.1`。核对官方 npm 发布包内 `package.json` 的 `license: "MIT"` 与 npm 元数据，保留原始声明和包完整性值。该包未附独立 LICENSE 文件；本项目没有补造上游版权声明，另附标准 MIT 许可正文。`qrcode-terminal@0.12.0` 的 Apache-2.0 及嵌套 QRCode MIT 声明原文一并保留。
+
+本次核对的 SDK `1.2.0` 标记为 `UNLICENSED`，因此没有纳入。版本升级必须重新核对许可，不能用本项目 MIT 许可替代上游授权。精确证据见 [npm 依赖清单](../third_party/licenses/npm/PACKAGES.json)、[锁文件](../onboard/package-lock.json)及[第三方声明](../THIRD_PARTY_NOTICES.md)。
