@@ -5,7 +5,7 @@ services:
     build:
       context: .
       dockerfile: onboard/Dockerfile
-    image: qq-tavern-login:0.2.0-dev
+    image: qq-tavern-login:0.2.1-dev
     volumes:
       - qq-private:/binding/private
       - qq-public:/binding/public

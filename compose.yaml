@@ -12,7 +12,7 @@ services:
 
   gateway:
     build: .
-    image: qq-tavern:0.2.0-dev
+    image: qq-tavern:0.2.1-dev
     command: [gateway]
     environment:
       QQ_APP_ID: ${QQ_APP_ID:-}
@@ -41,7 +41,7 @@ services:
       options: {max-size: 10m, max-file: "3"}
 
   worker:
-    image: qq-tavern:0.2.0-dev
+    image: qq-tavern:0.2.1-dev
     command: [worker]
     environment:
       QQ_APP_ID: ${QQ_APP_ID:-}
@@ -52,6 +52,7 @@ services:
       MODEL_API_MODE: ${MODEL_API_MODE:-responses}
       REASONING_EFFORT: ${REASONING_EFFORT:-medium}
       SUMMARY_MODEL: ${SUMMARY_MODEL:-}
+      SUMMARY_REASONING_EFFORT: ${SUMMARY_REASONING_EFFORT:-medium}
       IMAGE_BASE_URL: ${IMAGE_BASE_URL:-}
       IMAGE_API_KEY: ${IMAGE_API_KEY:-}
       IMAGE_MODEL: ${IMAGE_MODEL:-}

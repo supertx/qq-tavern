@@ -245,3 +245,16 @@ func TestConfiguration(t *testing.T) {
 		t.Fatal(c, err)
 	}
 }
+
+func TestChatMaxEffortPassThrough(t *testing.T) {
+	c := newTestClient(t, ChatCompletions, func(w http.ResponseWriter, r *http.Request) {
+		body := requestBody(t, r)
+		if body["reasoning_effort"] != "max" {
+			t.Fatal(body["reasoning_effort"])
+		}
+		_, _ = w.Write([]byte(`{"choices":[{"finish_reason":"stop","message":{"role":"assistant","content":"OK"}}]}`))
+	})
+	if _, err := c.Generate(context.Background(), Request{Model: "glm-5.3-flash", Effort: "max", Messages: []Message{{Role: "user", Content: "test"}}}); err != nil {
+		t.Fatal(err)
+	}
+}

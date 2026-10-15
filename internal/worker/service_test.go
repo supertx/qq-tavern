@@ -421,3 +421,41 @@ func TestSummaryExcludesOpaqueReasoningAndPreservesMemberLabels(t *testing.T) {
 		t.Fatal(input)
 	}
 }
+
+func TestSummaryUsesConfiguredEffortAndModel(t *testing.T) {
+	svc, store, _ := workerFixture(t, generateFunc(func(_ context.Context, r model.Request) (model.Response, error) {
+		if r.Effort != "high" || r.Model != "glm-5.3" {
+			t.Fatal(r.Effort, r.Model)
+		}
+		return model.Response{Text: "合成摘要"}, nil
+	}))
+	svc.cfg.SummaryEffort = "high"
+	svc.cfg.SummaryModel = "glm-5.3"
+	e := workerEvent("summary-effort", "group", "alice", "合成测试消息")
+	payload, _ := json.Marshal([]model.Message{{Role: "user", Content: "合成测试消息"}, {Role: "assistant", Content: "回复"}})
+	if err := store.AddTurn(context.Background(), e, "glm-5.3-flash", payload); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.summarize(context.Background(), e.Scope); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestFailureLogsStatusWithoutProviderContents(t *testing.T) {
+	var buf bytes.Buffer
+	old := slog.Default()
+	slog.SetDefault(slog.New(slog.NewJSONHandler(&buf, nil)))
+	defer slog.SetDefault(old)
+	err := fmt.Errorf("wrapped: %w", &model.Error{Kind: "http", StatusCode: 405, Message: "sensitive-provider-body"})
+	logFailure("turn failed", err, "model", "test-model", "protocol", "responses")
+	var record map[string]any
+	if err := json.Unmarshal(buf.Bytes(), &record); err != nil {
+		t.Fatal(err)
+	}
+	if record["error_kind"] != "http" || record["http_status"] != float64(405) || record["protocol"] != "responses" {
+		t.Fatal(record)
+	}
+	if strings.Contains(buf.String(), "sensitive-provider-body") {
+		t.Fatal("provider content leaked")
+	}
+}
