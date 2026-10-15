@@ -1,0 +1,90 @@
+services:
+  redis:
+    image: redis:7.4-alpine
+    command: [redis-server, --appendonly, "yes", --appendfsync, everysec]
+    volumes: [redis-data:/data]
+    restart: unless-stopped
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  gateway:
+    build: .
+    image: qq-tavern:0.1.0-dev
+    command: [gateway]
+    environment:
+      QQ_APP_ID: ${QQ_APP_ID:?Set QQ_APP_ID in .env}
+      QQ_APP_SECRET: ${QQ_APP_SECRET:?Set QQ_APP_SECRET in .env}
+      QQ_OBSERVE_GROUP_MESSAGES: ${QQ_OBSERVE_GROUP_MESSAGES:-false}
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:?Generate INTERNAL_API_TOKEN in .env}
+      REDIS_URL: redis://redis:6379/0
+      DATABASE_PATH: /data/gateway.db
+      LISTEN_ADDR: :8080
+    volumes: [gateway-data:/data]
+    ports: ["127.0.0.1:${GATEWAY_PORT:-18700}:8080"]
+    depends_on:
+      redis: {condition: service_healthy}
+    restart: unless-stopped
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    healthcheck:
+      test: [CMD, /qq-tavern, healthcheck]
+      interval: 15s
+      timeout: 5s
+      retries: 4
+      start_period: 30s
+    logging:
+      options: {max-size: 10m, max-file: "3"}
+
+  worker:
+    image: qq-tavern:0.1.0-dev
+    command: [worker]
+    environment:
+      QQ_APP_ID: ${QQ_APP_ID:?Set QQ_APP_ID in .env}
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:?Generate INTERNAL_API_TOKEN in .env}
+      MODEL_BASE_URL: ${MODEL_BASE_URL:?Set MODEL_BASE_URL in .env}
+      MODEL_API_KEY: ${MODEL_API_KEY:?Set MODEL_API_KEY in .env}
+      MODEL_NAME: ${MODEL_NAME:?Set MODEL_NAME in .env}
+      MODEL_API_MODE: ${MODEL_API_MODE:-responses}
+      REASONING_EFFORT: ${REASONING_EFFORT:-medium}
+      SUMMARY_MODEL: ${SUMMARY_MODEL:-}
+      IMAGE_BASE_URL: ${IMAGE_BASE_URL:-}
+      IMAGE_API_KEY: ${IMAGE_API_KEY:-}
+      IMAGE_MODEL: ${IMAGE_MODEL:-}
+      SPEECH_BASE_URL: ${SPEECH_BASE_URL:-}
+      SPEECH_API_KEY: ${SPEECH_API_KEY:-}
+      SPEECH_MODEL: ${SPEECH_MODEL:-}
+      SPEECH_VOICE: ${SPEECH_VOICE:-alloy}
+      SEARXNG_URL: ${SEARXNG_URL:-}
+      MAX_CONCURRENCY: ${MAX_CONCURRENCY:-4}
+      GATEWAY_URL: http://gateway:8080
+      REDIS_URL: redis://redis:6379/0
+      DATABASE_PATH: /data/worker.db
+      LISTEN_ADDR: :8080
+    volumes: [worker-data:/data]
+    ports: ["127.0.0.1:${WORKER_PORT:-18710}:8080"]
+    depends_on:
+      gateway: {condition: service_healthy}
+      redis: {condition: service_healthy}
+    restart: unless-stopped
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    stop_grace_period: 30s
+    healthcheck:
+      test: [CMD, /qq-tavern, healthcheck]
+      interval: 15s
+      timeout: 5s
+      retries: 4
+    logging:
+      options: {max-size: 10m, max-file: "3"}
+
+volumes:
+  redis-data:
+  gateway-data:
+  worker-data:

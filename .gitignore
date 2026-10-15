@@ -1,0 +1,10 @@
+.env
+.env.*
+!.env.example
+data/
+bin/
+coverage.out
+.cache/
+*.db*
+*.pem
+.DS_Store

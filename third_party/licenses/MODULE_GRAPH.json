@@ -1,0 +1,377 @@
+{
+  "verified_at": "2026-10-15",
+  "go_toolchain": "go1.27.1",
+  "linux_targets": [
+    "amd64",
+    "arm64"
+  ],
+  "modules": [
+    {
+      "module": "github.com/chzyer/readline",
+      "version": "v1.5.1",
+      "runtime_linux": false,
+      "runtime_darwin_arm64": false,
+      "project_tests_darwin_arm64": false,
+      "license_files": []
+    },
+    {
+      "module": "github.com/dustin/go-humanize",
+      "version": "v1.0.1",
+      "runtime_linux": true,
+      "runtime_darwin_arm64": true,
+      "project_tests_darwin_arm64": true,
+      "license_files": [
+        {
+          "path": "third_party/licenses/github.com__dustin__go-humanize@v1.0.1/LICENSE",
+          "upstream_path": "LICENSE",
+          "sha256": "a973b4498c13eb74baa2a8e5c351426a6826f2fcdd909916dbe53ee2e755fd71"
+        }
+      ]
+    },
+    {
+      "module": "github.com/google/go-cmp",
+      "version": "v0.5.8",
+      "runtime_linux": false,
+      "runtime_darwin_arm64": false,
+      "project_tests_darwin_arm64": false,
+      "license_files": []
+    },
+    {
+      "module": "github.com/google/pprof",
+      "version": "v0.0.0-20250317173921-a4b03ec1a45e",
+      "runtime_linux": false,
+      "runtime_darwin_arm64": false,
+      "project_tests_darwin_arm64": false,
+      "license_files": []
+    },
+    {
+      "module": "github.com/google/uuid",
+      "version": "v1.6.0",
+      "runtime_linux": true,
+      "runtime_darwin_arm64": true,
+      "project_tests_darwin_arm64": true,
+      "license_files": [
+        {
+          "path": "third_party/licenses/github.com__google__uuid@v1.6.0/LICENSE",
+          "upstream_path": "LICENSE",
+          "sha256": "0a8d61ed3cbfd5312326e8126c31ce9c627a283adc99131b56896d29ada04b2d"
+        }
+      ]
+    },
+    {
+      "module": "github.com/gorilla/websocket",
+      "version": "v1.5.3",
+      "runtime_linux": true,
+      "runtime_darwin_arm64": true,
+      "project_tests_darwin_arm64": true,
+      "license_files": [
+        {
+          "path": "third_party/licenses/github.com__gorilla__websocket@v1.5.3/LICENSE",
+          "upstream_path": "LICENSE",
+          "sha256": "2be1b548b0387ca8948e1bb9434e709126904d15f622cc2d0d8e7f186e4d122d"
+        }
+      ]
+    },
+    {
+      "module": "github.com/ianlancetaylor/demangle",
+      "version": "v0.0.0-20240312041847-bd984b5ce465",
+      "runtime_linux": false,
+      "runtime_darwin_arm64": false,
+      "project_tests_darwin_arm64": false,
+      "license_files": []
+    },
+    {
+      "module": "github.com/kballard/go-shellquote",
+      "version": "v0.0.0-20180428030007-95032a82bc51",
+      "runtime_linux": false,
+      "runtime_darwin_arm64": false,
+      "project_tests_darwin_arm64": false,
+      "license_files": []
+    },
+    {
+      "module": "github.com/mattn/go-isatty",
+      "version": "v0.0.20",
+      "runtime_linux": false,
+      "runtime_darwin_arm64": true,
+      "project_tests_darwin_arm64": true,
+      "license_files": [
+        {
+          "path": "third_party/licenses/github.com__mattn__go-isatty@v0.0.20/LICENSE",
+          "upstream_path": "LICENSE",
+          "sha256": "08eab1118c80885fa1fa6a6dd7303f65a379fcb3733e063d20d1bbc2c76e6fa1"
+        }
+      ]
+    },
+    {
+      "module": "github.com/ncruces/go-strftime",
+      "version": "v0.1.9",
+      "runtime_linux": false,
+      "runtime_darwin_arm64": true,
+      "project_tests_darwin_arm64": true,
+      "license_files": [
+        {
+          "path": "third_party/licenses/github.com__ncruces__go-strftime@v0.1.9/LICENSE",
+          "upstream_path": "LICENSE",
+          "sha256": "38ae43959daf953a393a585b2988672cb65a5a541aca0d0be5e72595a0a16883"
+        }
+      ]
+    },
+    {
+      "module": "github.com/remyoudompheng/bigfft",
+      "version": "v0.0.0-20230129092748-24d4a6f8daec",
+      "runtime_linux": true,
+      "runtime_darwin_arm64": true,
+      "project_tests_darwin_arm64": true,
+      "license_files": [
+        {
+          "path": "third_party/licenses/github.com__remyoudompheng__bigfft@v0.0.0-20230129092748-24d4a6f8daec/LICENSE",
+          "upstream_path": "LICENSE",
+          "sha256": "dd26a7abddd02e2d0aba97805b31f248ef7835d9e10da289b22e3b8ab78b324d"
+        }
+      ]
+    },
+    {
+      "module": "golang.org/x/exp",
+      "version": "v0.0.0-20230315142452-642cacee5cc0",
+      "runtime_linux": true,
+      "runtime_darwin_arm64": true,
+      "project_tests_darwin_arm64": true,
+      "license_files": [
+        {
+          "path": "third_party/licenses/golang.org__x__exp@v0.0.0-20230315142452-642cacee5cc0/LICENSE",
+          "upstream_path": "LICENSE",
+          "sha256": "2d36597f7117c38b006835ae7f537487207d8ec407aa9d9980794b2030cbc067"
+        }
+      ]
+    },
+    {
+      "module": "golang.org/x/mod",
+      "version": "v0.19.0",
+      "runtime_linux": false,
+      "runtime_darwin_arm64": false,
+      "project_tests_darwin_arm64": false,
+      "license_files": []
+    },
+    {
+      "module": "golang.org/x/sync",
+      "version": "v0.7.0",
+      "runtime_linux": false,
+      "runtime_darwin_arm64": false,
+      "project_tests_darwin_arm64": false,
+      "license_files": []
+    },
+    {
+      "module": "golang.org/x/sys",
+      "version": "v0.31.0",
+      "runtime_linux": true,
+      "runtime_darwin_arm64": true,
+      "project_tests_darwin_arm64": true,
+      "license_files": [
+        {
+          "path": "third_party/licenses/golang.org__x__sys@v0.31.0/LICENSE",
+          "upstream_path": "LICENSE",
+          "sha256": "911f8f5782931320f5b8d1160a76365b83aea6447ee6c04fa6d5591467db9dad"
+        }
+      ]
+    },
+    {
+      "module": "golang.org/x/tools",
+      "version": "v0.23.0",
+      "runtime_linux": false,
+      "runtime_darwin_arm64": false,
+      "project_tests_darwin_arm64": false,
+      "license_files": []
+    },
+    {
+      "module": "lukechampine.com/uint128",
+      "version": "v1.2.0",
+      "runtime_linux": false,
+      "runtime_darwin_arm64": false,
+      "project_tests_darwin_arm64": false,
+      "license_files": []
+    },
+    {
+      "module": "modernc.org/cc/v3",
+      "version": "v3.41.0",
+      "runtime_linux": false,
+      "runtime_darwin_arm64": false,
+      "project_tests_darwin_arm64": false,
+      "license_files": []
+    },
+    {
+      "module": "modernc.org/cc/v4",
+      "version": "v4.24.4",
+      "runtime_linux": false,
+      "runtime_darwin_arm64": false,
+      "project_tests_darwin_arm64": false,
+      "license_files": []
+    },
+    {
+      "module": "modernc.org/ccgo/v3",
+      "version": "v3.17.0",
+      "runtime_linux": false,
+      "runtime_darwin_arm64": false,
+      "project_tests_darwin_arm64": false,
+      "license_files": []
+    },
+    {
+      "module": "modernc.org/ccgo/v4",
+      "version": "v4.23.16",
+      "runtime_linux": false,
+      "runtime_darwin_arm64": false,
+      "project_tests_darwin_arm64": false,
+      "license_files": []
+    },
+    {
+      "module": "modernc.org/fileutil",
+      "version": "v1.3.0",
+      "runtime_linux": false,
+      "runtime_darwin_arm64": false,
+      "project_tests_darwin_arm64": false,
+      "license_files": []
+    },
+    {
+      "module": "modernc.org/gc/v2",
+      "version": "v2.6.3",
+      "runtime_linux": false,
+      "runtime_darwin_arm64": false,
+      "project_tests_darwin_arm64": false,
+      "license_files": []
+    },
+    {
+      "module": "modernc.org/libc",
+      "version": "v1.61.13",
+      "runtime_linux": true,
+      "runtime_darwin_arm64": true,
+      "project_tests_darwin_arm64": true,
+      "license_files": [
+        {
+          "path": "third_party/licenses/modernc.org__libc@v1.61.13/COPYRIGHT-MUSL",
+          "upstream_path": "COPYRIGHT-MUSL",
+          "sha256": "f9bc4423732350eb0b3f7ed7e91d530298476f8fec0c6c427a1c04ade22655af"
+        },
+        {
+          "path": "third_party/licenses/modernc.org__libc@v1.61.13/LICENSE",
+          "upstream_path": "LICENSE",
+          "sha256": "95ff867eb55a56935fa7492406cfa953fb7c13ca73f4c0a86ae05756b4605600"
+        },
+        {
+          "path": "third_party/licenses/modernc.org__libc@v1.61.13/LICENSE-GO",
+          "upstream_path": "LICENSE-GO",
+          "sha256": "2d36597f7117c38b006835ae7f537487207d8ec407aa9d9980794b2030cbc067"
+        },
+        {
+          "path": "third_party/licenses/modernc.org__libc@v1.61.13/honnef.co__go__netdb__LICENSE",
+          "upstream_path": "honnef.co/go/netdb/LICENSE",
+          "sha256": "657707d00e00d3077e4ccfac2d6a123ad908c3f503370798eb2cb52e68e135a6"
+        }
+      ]
+    },
+    {
+      "module": "modernc.org/mathutil",
+      "version": "v1.7.1",
+      "runtime_linux": true,
+      "runtime_darwin_arm64": true,
+      "project_tests_darwin_arm64": true,
+      "license_files": [
+        {
+          "path": "third_party/licenses/modernc.org__mathutil@v1.7.1/LICENSE",
+          "upstream_path": "LICENSE",
+          "sha256": "bfa9bf72a72ca009fd62a8f84fca3dca67e51d93af96352723646599898b6cf5"
+        }
+      ]
+    },
+    {
+      "module": "modernc.org/memory",
+      "version": "v1.8.2",
+      "runtime_linux": true,
+      "runtime_darwin_arm64": true,
+      "project_tests_darwin_arm64": true,
+      "license_files": [
+        {
+          "path": "third_party/licenses/modernc.org__memory@v1.8.2/LICENSE",
+          "upstream_path": "LICENSE",
+          "sha256": "59895e669f48f168b6b858358f6005779cdf40a265f7828813061b56af67b496"
+        },
+        {
+          "path": "third_party/licenses/modernc.org__memory@v1.8.2/LICENSE-GO",
+          "upstream_path": "LICENSE-GO",
+          "sha256": "2d36597f7117c38b006835ae7f537487207d8ec407aa9d9980794b2030cbc067"
+        },
+        {
+          "path": "third_party/licenses/modernc.org__memory@v1.8.2/LICENSE-MMAP-GO",
+          "upstream_path": "LICENSE-MMAP-GO",
+          "sha256": "c2eba69f20d05414538c3a5df7694dde392e065ff70882e1625e90f5d6659fff"
+        }
+      ]
+    },
+    {
+      "module": "modernc.org/opt",
+      "version": "v0.1.4",
+      "runtime_linux": false,
+      "runtime_darwin_arm64": false,
+      "project_tests_darwin_arm64": false,
+      "license_files": []
+    },
+    {
+      "module": "modernc.org/sortutil",
+      "version": "v1.2.1",
+      "runtime_linux": false,
+      "runtime_darwin_arm64": false,
+      "project_tests_darwin_arm64": false,
+      "license_files": []
+    },
+    {
+      "module": "modernc.org/sqlite",
+      "version": "v1.36.3",
+      "runtime_linux": true,
+      "runtime_darwin_arm64": true,
+      "project_tests_darwin_arm64": true,
+      "license_files": [
+        {
+          "path": "third_party/licenses/modernc.org__sqlite@v1.36.3/LICENSE",
+          "upstream_path": "LICENSE",
+          "sha256": "c6fe05491a60ae13bcd223088d2705e36dede24e5587226231d2459ada5c4822"
+        }
+      ]
+    },
+    {
+      "module": "modernc.org/strutil",
+      "version": "v1.2.1",
+      "runtime_linux": false,
+      "runtime_darwin_arm64": false,
+      "project_tests_darwin_arm64": false,
+      "license_files": []
+    },
+    {
+      "module": "modernc.org/token",
+      "version": "v1.1.0",
+      "runtime_linux": false,
+      "runtime_darwin_arm64": false,
+      "project_tests_darwin_arm64": false,
+      "license_files": []
+    }
+  ],
+  "additional_license_files": [
+    {
+      "path": "third_party/licenses/go/LICENSE",
+      "source": "Go 1.27.1 toolchain LICENSE",
+      "sha256": "911f8f5782931320f5b8d1160a76365b83aea6447ee6c04fa6d5591467db9dad"
+    },
+    {
+      "path": "third_party/licenses/go/PATENTS",
+      "source": "Go 1.27.1 toolchain PATENTS",
+      "sha256": "96f408bfae65bf137fc2525d3ecb030271c50c1e90799f87abf8846d8dd505cc"
+    },
+    {
+      "path": "third_party/licenses/modernc.org__sqlite@v1.36.3/SQLITE-ENGINE-NOTICE",
+      "source": "modernc.org/sqlite@v1.36.3/lib/sqlite_linux_amd64.go: complete sqlite3rtree.h license comment",
+      "sha256": "aa0ad567dc5b0133edb9fc7aaf8a8a02fb9c2e7ad03aaf3431ddba24702fd2ec"
+    },
+    {
+      "path": "third_party/licenses/mozilla/MPL-2.0.txt",
+      "source": "https://www.mozilla.org/media/MPL/2.0/index.txt",
+      "sha256": "3f3d9e0024b1921b067d6f7f88deb4a60cbe7a78e76c64e3f1d7fc3b779b9d04"
+    }
+  ]
+}

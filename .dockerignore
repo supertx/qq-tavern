@@ -1,0 +1,9 @@
+.git
+.env
+.env.*
+data
+bin
+.cache
+coverage.out
+*.db*
+*.pem
