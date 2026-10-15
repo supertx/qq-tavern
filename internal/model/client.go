@@ -218,7 +218,7 @@ func validateRequest(req *Request) error {
 		req.Effort = "medium"
 	}
 	switch req.Effort {
-	case "none", "minimal", "low", "medium", "high", "xhigh":
+	case "none", "minimal", "low", "medium", "high", "xhigh", "max":
 	default:
 		return failure("invalid_request", "unsupported reasoning effort")
 	}

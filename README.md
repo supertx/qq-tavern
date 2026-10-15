@@ -1,6 +1,6 @@
 # qq-tavern
 
-可自行部署的 QQ 机器人：角色、世界书、群规则、摘要和个人记忆均按会话隔离，直接在 QQ 内设置。当前版本为 `0.2.0-dev`，私有开发阶段；尚未进行真实 QQ 账号验收。
+可自行部署的 QQ 机器人：角色、世界书、群规则、摘要和个人记忆均按会话隔离，直接在 QQ 内设置。当前版本为 `0.2.1-dev`，私有开发阶段；尚未进行真实 QQ 账号验收。
 
 ## 快速启动
 
@@ -95,7 +95,24 @@ flowchart LR
 - 发送前持久化去重记录。崩溃或网络中断导致发送结果不确定时，不自动重发，因此极端情况下可能少回复一次。
 - 首版不包含角色卡导入、向量检索、第三方酒馆插件、动态 Skill 编辑、定时任务或主动互动。
 
-`REASONING_EFFORT` 可设 `none/minimal/low/medium/high/xhigh`，具体能否使用取决于模型服务。`/当前模型` 显示配置；服务端拒绝不支持的档位时会返回调用失败，不宣称已使用。摘要固定 `medium`，`SUMMARY_MODEL` 留空时沿用聊天模型。汇总日志中 `reasoning_tokens_subset` 是 `output_tokens` 的子集，不再次相加。
+`REASONING_EFFORT` 可设 `none/minimal/low/medium/high/xhigh/max`，具体能否使用取决于模型服务。`/当前模型` 显示配置；服务端拒绝不支持的档位时会返回调用失败，不宣称已使用。摘要默认 `medium`，可通过 `SUMMARY_REASONING_EFFORT` 单独设置；`SUMMARY_MODEL` 留空时沿用聊天模型。汇总日志中 `reasoning_tokens_subset` 是 `output_tokens` 的子集，不再次相加。
+
+### 智谱 GLM 配置
+
+[智谱官方对话接口](https://docs.bigmodel.cn/api-reference/模型-api/对话补全)使用 `/api/paas/v4/chat/completions`。直连智谱时，不能沿用 OpenAI 的 `/v1` 和 Responses 配置。GLM-5.3 与 GLM-5.3-Flash 的思考档位支持 `low/high/max`，聊天和摘要都需选择支持的档位：
+
+```dotenv
+MODEL_BASE_URL=https://open.bigmodel.cn/api/paas/v4
+MODEL_API_MODE=chat_completions
+MODEL_NAME=glm-5.3-flash
+REASONING_EFFORT=high
+SUMMARY_MODEL=glm-5.3
+SUMMARY_REASONING_EFFORT=high
+```
+
+仅本地配置中的 `MODEL_API_KEY` 填入你的智谱密钥。修改配置后需重建 Worker 容器环境，单独 `docker compose restart` 不会加载新的 `.env`。扫码模式可运行 `docker compose -f compose.yaml -f compose.qr.yaml up -d --no-deps worker`；更新了应用代码时先构建新镜像。
+
+失败日志记录 `error_kind`、`http_status`、模型、协议和档位，不输出 API Key、聊天内容或上游响应正文。常见情况：`http_status=401/403` 检查鉴权／权限，`404/405` 检查地址和协议，`400` 检查模型和参数；`error_kind=transport` 才表示传输错误。
 
 ## 运维和开发
 

@@ -22,7 +22,7 @@ import (
 	"github.com/supertx/qq-tavern/internal/worker"
 )
 
-var version = "0.2.0-dev"
+var version = "0.2.1-dev"
 
 func main() {
 	if err := run(); err != nil {
