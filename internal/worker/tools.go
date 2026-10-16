@@ -30,6 +30,9 @@ type Tools struct {
 	client, public *http.Client
 }
 type ToolSession struct {
+	store         *state.Store
+	status        *state.StatusSnapshot
+	pending       *state.PendingStatus
 	tools         *Tools
 	event         domain.Event
 	sendCtx       context.Context
@@ -44,7 +47,7 @@ func NewTools(c config.Config, s *state.Store, sender Sender) *Tools {
 	return &Tools{cfg: c, store: s, sender: sender, client: &http.Client{Timeout: 0, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}, public: netguard.NewClient()}
 }
 func (t *Tools) Session(e domain.Event) *ToolSession {
-	return &ToolSession{tools: t, event: e, counts: map[string]int{}, seen: map[string]string{}}
+	return &ToolSession{tools: t, store: t.store, event: e, counts: map[string]int{}, seen: map[string]string{}}
 }
 func schema(properties map[string]any, required ...string) json.RawMessage {
 	raw, _ := json.Marshal(map[string]any{"type": "object", "properties": properties, "required": required, "additionalProperties": false})
@@ -74,7 +77,7 @@ func (s *ToolSession) Execute(ctx context.Context, c model.Call) string {
 		return toolError(errors.New("本轮工具次数已用完"))
 	}
 	enabled := false
-	for _, t := range s.tools.Definitions() {
+	for _, t := range s.Definitions() {
 		if t.Name == c.Name {
 			enabled = true
 			break
@@ -130,6 +133,23 @@ func decode(raw string, v any) error {
 }
 func (s *ToolSession) run(ctx context.Context, c model.Call) (any, error) {
 	switch c.Name {
+	case statusTool:
+		if s.status == nil {
+			return nil, errors.New("角色状态未加载")
+		}
+		if s.pending != nil {
+			return nil, errors.New("本轮已有有效状态更新，不能再次修改")
+		}
+		var patch state.StatusPatch
+		if err := decode(c.Arguments, &patch); err != nil {
+			return nil, err
+		}
+		pending, err := state.PrepareStatus(*s.status, patch)
+		if err != nil {
+			return nil, err
+		}
+		s.pending = pending
+		return map[string]any{"staged": true, "message": "已校验并暂存；正常回复成功后保存。继续自然回复，不展示数值或状态栏。"}, nil
 	case "current_time":
 		var a struct{}
 		if err := decode(c.Arguments, &a); err != nil {
@@ -146,7 +166,7 @@ func (s *ToolSession) run(ctx context.Context, c model.Call) (any, error) {
 		if len([]rune(a.Query)) < 1 || len([]rune(a.Query)) > 200 {
 			return nil, errors.New("query需要1至200字符")
 		}
-		turns, err := s.tools.store.Search(ctx, s.event.Scope, a.Query, 10)
+		turns, err := s.store.Search(ctx, s.event.Scope, a.Query, 10)
 		if err != nil {
 			return nil, err
 		}

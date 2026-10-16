@@ -123,7 +123,11 @@ func (s *Service) process(ctx context.Context, e domain.Event) error {
 	input := userMessage(e)
 	if e.ObserveOnly {
 		raw, _ := json.Marshal([]model.Message{input})
-		return s.store.AddTurn(ctx, e, s.cfg.Model, raw)
+		view, err := s.store.BindMessage(ctx, e)
+		if err != nil {
+			return err
+		}
+		return view.AddTurn(ctx, e, s.cfg.Model, raw)
 	}
 	if strings.TrimSpace(e.Text) == "/当前模型" {
 		return s.reply(ctx, e, "model", fmt.Sprintf("当前模型：%s\n思考强度：%s\n调用协议：%s", s.cfg.Model, s.cfg.Effort, s.cfg.Mode))
@@ -134,10 +138,10 @@ func (s *Service) process(ctx context.Context, e domain.Event) error {
 	}
 	if cmd.Handled {
 		if cmd.RequestSummary {
-			if err = s.summarize(ctx, e.Scope); err != nil {
+			if err = s.summarizeRole(ctx, cmd.Store, e.Scope); err != nil {
 				return s.reply(ctx, e, "summary-error", "摘要更新失败，已保留原摘要。")
 			}
-			summary, err := s.store.Summary(ctx, e.Scope)
+			summary, err := cmd.Store.Summary(ctx, e.Scope)
 			if err != nil {
 				return err
 			}
@@ -148,15 +152,19 @@ func (s *Service) process(ctx context.Context, e domain.Event) error {
 		}
 		return s.reply(ctx, e, "command", cmd.Text)
 	}
-	snapshot, err := s.store.Snapshot(ctx, e.Scope, e.UserID)
+	view, err := s.store.BindMessage(ctx, e)
+	if err != nil {
+		return err
+	}
+	snapshot, err := view.Snapshot(ctx, e.Scope, e.UserID)
 	if err != nil {
 		return err
 	}
 	memory, active := tavern.BuildContext(snapshot, e.Text)
-	if err = s.store.RecordActivation(ctx, e, active); err != nil {
+	if err = view.RecordActivation(ctx, e, active); err != nil {
 		return err
 	}
-	history, err := s.store.History(ctx, e.Scope, 20)
+	history, err := view.History(ctx, e.Scope, 20)
 	if err != nil {
 		return err
 	}
@@ -177,7 +185,7 @@ func (s *Service) process(ctx context.Context, e domain.Event) error {
 			break
 		}
 		chars += size
-		selected = append(selected, turn)
+		selected = append(selected, withoutStatusTools(turn))
 	}
 	for i := len(selected) - 1; i >= 0; i-- {
 		messages = append(messages, selected[i]...)
@@ -188,13 +196,15 @@ func (s *Service) process(ctx context.Context, e domain.Event) error {
 
 	session := s.tools.Session(e)
 	session.sendCtx = ctx
+	session.store = view
+	session.status = &snapshot.Status
 	usage := model.Usage{}
 	effectiveDeadline, _ := ctx.Deadline()
 	modelDeadline := effectiveDeadline.Add(-10 * time.Second)
 	modelCtx, stop := context.WithDeadline(ctx, modelDeadline)
 	defer stop()
 	for round := 0; round < 12; round++ {
-		response, err := s.model.Generate(modelCtx, model.Request{Model: s.cfg.Model, Effort: s.cfg.Effort, System: system, Messages: messages, Tools: s.tools.Definitions()})
+		response, err := s.model.Generate(modelCtx, model.Request{Model: s.cfg.Model, Effort: s.cfg.Effort, System: system, Messages: messages, Tools: session.Definitions()})
 		usage.InputTokens += response.Usage.InputTokens
 		usage.OutputTokens += response.Usage.OutputTokens
 		usage.ReasoningTokens += response.Usage.ReasoningTokens
@@ -220,8 +230,15 @@ func (s *Service) process(ctx context.Context, e domain.Event) error {
 					return err
 				}
 			}
-			raw, _ := json.Marshal(current)
-			if err = s.store.AddTurn(ctx, e, s.cfg.Model, raw); err != nil {
+			raw, _ := json.Marshal(withoutStatusTools(current))
+			pending := session.pending
+			if strings.TrimSpace(response.Text) == "" && !session.Sent {
+				pending = nil
+			}
+			commitCtx, commitCancel := context.WithTimeout(context.WithoutCancel(ctx), 3*time.Second)
+			err = view.AddTurnWithStatus(commitCtx, e, s.cfg.Model, raw, pending)
+			commitCancel()
+			if err != nil {
 				return err
 			}
 			slog.Info("turn completed", "scope", e.Scope.Key()[:12], "model", s.cfg.Model, "effort", s.cfg.Effort, "protocol", s.cfg.Mode, "input_tokens", usage.InputTokens, "output_tokens", usage.OutputTokens, "reasoning_tokens_subset", usage.ReasoningTokens)
@@ -268,7 +285,14 @@ func (s *Service) executeTool(ctx context.Context, session *ToolSession, c model
 	return result, err
 }
 func (s *Service) summarize(ctx context.Context, scope domain.Scope) error {
-	key := scope.Key()
+	view, err := s.store.BindActive(ctx, scope)
+	if err != nil {
+		return err
+	}
+	return s.summarizeRole(ctx, view, scope)
+}
+func (s *Service) summarizeRole(ctx context.Context, view *state.Store, scope domain.Scope) error {
+	key := view.Role().Key
 	s.summaryMu.Lock()
 	if s.summarizing[key] {
 		s.summaryMu.Unlock()
@@ -277,11 +301,11 @@ func (s *Service) summarize(ctx context.Context, scope domain.Scope) error {
 	s.summarizing[key] = true
 	s.summaryMu.Unlock()
 	defer func() { s.summaryMu.Lock(); delete(s.summarizing, key); s.summaryMu.Unlock() }()
-	old, err := s.store.Summary(ctx, scope)
+	old, err := view.Summary(ctx, scope)
 	if err != nil {
 		return err
 	}
-	turns, err := s.store.HistorySince(ctx, scope, old.Checkpoint, 100)
+	turns, err := view.HistorySince(ctx, scope, old.Checkpoint, 100)
 	if err != nil {
 		return err
 	}
@@ -322,7 +346,7 @@ func (s *Service) summarize(ctx context.Context, scope domain.Scope) error {
 	if len(response.Calls) > 0 || strings.TrimSpace(response.Text) == "" {
 		return errors.New("summary returned no text")
 	}
-	return s.store.SaveSummary(ctx, scope, old.Version, checkpoint, response.Text)
+	return view.SaveSummary(ctx, scope, old.Version, checkpoint, response.Text)
 }
 func (s *Service) RunSummaries(ctx context.Context) {
 	ticker := time.NewTicker(15 * time.Second)
@@ -332,31 +356,36 @@ func (s *Service) RunSummaries(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			scopes, err := s.store.DueSummaries(ctx, time.Now())
+			scopes, err := s.store.DueRoleSummaries(ctx, time.Now())
 			if err != nil {
 				continue
 			}
-			for _, scope := range scopes {
+			for _, role := range scopes {
+				scope := role.Scope
 				if ctx.Err() != nil {
 					return
 				}
 				s.summaryMu.Lock()
-				retry := s.summaryRetry[scope.Key()]
+				retry := s.summaryRetry[role.Key]
 				s.summaryMu.Unlock()
 				if time.Now().Before(retry) {
 					continue
 				}
 				job, cancel := context.WithTimeout(ctx, 180*time.Second)
-				err = s.summarize(job, scope)
+				view, bindErr := s.store.BindRoleID(job, scope, role.ID)
+				err = bindErr
+				if err == nil {
+					err = s.summarizeRole(job, view, scope)
+				}
 				cancel()
 				if err != nil {
 					logFailure("summary failed", err, "scope", scope.Key()[:12], "model", s.cfg.SummaryModel, "protocol", s.cfg.Mode, "effort", s.cfg.SummaryEffort)
 				}
 				s.summaryMu.Lock()
 				if err != nil {
-					s.summaryRetry[scope.Key()] = time.Now().Add(2 * time.Minute)
+					s.summaryRetry[role.Key] = time.Now().Add(2 * time.Minute)
 				} else {
-					delete(s.summaryRetry, scope.Key())
+					delete(s.summaryRetry, role.Key)
 				}
 				s.summaryMu.Unlock()
 			}

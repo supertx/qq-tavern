@@ -1,2 +1,3 @@
 # Preserve upstream license bytes, including original trailing whitespace.
-third_party/licenses/** whitespace=-blank-at-eof,-blank-at-eol
+third_party/licenses/** -text whitespace=-blank-at-eof,-blank-at-eol
+scripts/*.cmd text eol=crlf

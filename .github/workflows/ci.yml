@@ -3,6 +3,20 @@ on: [push, pull_request, workflow_dispatch]
 permissions:
   contents: read
 jobs:
+  windows-startup:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        powershell: [powershell.exe, pwsh.exe]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Test Windows startup modes
+        env:
+          TEST_POWERSHELL: ${{ matrix.powershell }}
+        run: python scripts/start_windows_test.py
   verify:
     runs-on: ubuntu-latest
     steps:

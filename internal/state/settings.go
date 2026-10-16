@@ -45,12 +45,12 @@ func validateConfig(c Config) error {
 	}
 	return nil
 }
-func operationExists(ctx context.Context, tx *sql.Tx, e domain.Event) (bool, error) {
+func (s *Store) operationExists(ctx context.Context, tx *sql.Tx, e domain.Event) (bool, error) {
 	var n int
-	err := tx.QueryRowContext(ctx, `SELECT count(*) FROM tavern_operation WHERE scope=? AND event=?`, e.Scope.Key(), e.ID).Scan(&n)
+	err := tx.QueryRowContext(ctx, `SELECT count(*) FROM tavern_operation WHERE scope=? AND event=?`, s.key(e.Scope), e.ID).Scan(&n)
 	return n > 0, err
 }
-func recordMutation(ctx context.Context, tx *sql.Tx, e domain.Event, target, member string, before, after any, version int64) error {
+func (s *Store) recordMutation(ctx context.Context, tx *sql.Tx, e domain.Event, target, member string, before, after any, version int64) error {
 	b, err := json.Marshal(before)
 	if err != nil {
 		return err
@@ -59,23 +59,32 @@ func recordMutation(ctx context.Context, tx *sql.Tx, e domain.Event, target, mem
 	if err != nil {
 		return err
 	}
-	_, err = tx.ExecContext(ctx, `INSERT INTO tavern_revision(scope,target,member,actor,actor_name,event,before_data,after_data,version,created) VALUES(?,?,?,?,?,?,?,?,?,?)`, e.Scope.Key(), target, member, e.UserID, e.UserName, e.ID, string(b), string(a), version, time.Now().Unix())
+	_, err = tx.ExecContext(ctx, `INSERT INTO tavern_revision(scope,target,member,actor,actor_name,event,before_data,after_data,version,created) VALUES(?,?,?,?,?,?,?,?,?,?)`, s.key(e.Scope), target, member, e.UserID, e.UserName, e.ID, string(b), string(a), version, time.Now().Unix())
 	if err != nil {
 		return err
 	}
-	_, err = tx.ExecContext(ctx, `INSERT INTO tavern_operation(scope,event) VALUES(?,?)`, e.Scope.Key(), e.ID)
+	_, err = tx.ExecContext(ctx, `INSERT OR IGNORE INTO tavern_operation(scope,event) VALUES(?,?)`, s.key(e.Scope), e.ID)
 	return err
 }
-func writeConfig(ctx context.Context, tx *sql.Tx, scope domain.Scope, c Config) error {
+func writeConfig(ctx context.Context, tx *sql.Tx, scope domain.Scope, key string, c Config) error {
+	if c.ProfileName == "" {
+		c.ProfileName = strings.TrimSpace(c.Character.Name)
+	}
+	if c.ProfileName == "" {
+		c.ProfileName = "默认角色"
+	}
+	if err := renameRole(ctx, tx, key, c.ProfileName); err != nil {
+		return err
+	}
 	data, err := json.Marshal(c)
 	if err != nil {
 		return err
 	}
-	_, err = tx.ExecContext(ctx, `INSERT INTO tavern_config(scope,bot,kind,conversation,data,version) VALUES(?,?,?,?,?,?) ON CONFLICT(scope) DO UPDATE SET data=excluded.data,version=excluded.version`, scope.Key(), scope.BotID, scope.Kind, scope.ID, string(data), c.Version)
+	_, err = tx.ExecContext(ctx, `INSERT INTO tavern_config(scope,bot,kind,conversation,data,version) VALUES(?,?,?,?,?,?) ON CONFLICT(scope) DO UPDATE SET data=excluded.data,version=excluded.version`, key, scope.BotID, scope.Kind, scope.ID, string(data), c.Version)
 	return err
 }
 func (s *Store) UpdateConfig(ctx context.Context, e domain.Event, expectedVersion int64, change func(*Config) error) (Config, error) {
-	if err := validEvent(e); err != nil {
+	if err := s.validEvent(e); err != nil {
 		return Config{}, err
 	}
 	tx, err := s.db.BeginTx(ctx, nil)
@@ -83,11 +92,11 @@ func (s *Store) UpdateConfig(ctx context.Context, e domain.Event, expectedVersio
 		return Config{}, err
 	}
 	defer tx.Rollback()
-	before, err := readConfig(ctx, tx, e.Scope)
+	before, err := readConfig(ctx, tx, s.key(e.Scope))
 	if err != nil {
 		return before, err
 	}
-	duplicate, err := operationExists(ctx, tx, e)
+	duplicate, err := s.operationExists(ctx, tx, e)
 	if err != nil {
 		return before, err
 	}
@@ -105,24 +114,28 @@ func (s *Store) UpdateConfig(ctx context.Context, e domain.Event, expectedVersio
 	if err = change(&after); err != nil {
 		return before, err
 	}
+	after.ProfileName = before.ProfileName
+	if after.Character.Name != before.Character.Name && strings.TrimSpace(after.Character.Name) != "" {
+		after.ProfileName = strings.TrimSpace(after.Character.Name)
+	}
 	after.Version = before.Version + 1
 	if err = validateConfig(after); err != nil {
 		return before, err
 	}
-	if err = writeConfig(ctx, tx, e.Scope, after); err != nil {
+	if err = writeConfig(ctx, tx, e.Scope, s.key(e.Scope), after); err != nil {
 		return before, err
 	}
-	if err = recordMutation(ctx, tx, e, "config", "", before, after, after.Version); err != nil {
+	if err = s.recordMutation(ctx, tx, e, "config", "", before, after, after.Version); err != nil {
 		return before, err
 	}
 	return after, tx.Commit()
 }
-func writePersonal(ctx context.Context, tx *sql.Tx, scope domain.Scope, member, content string, version int64) error {
-	_, err := tx.ExecContext(ctx, `INSERT INTO tavern_personal(scope,member,content,version) VALUES(?,?,?,?) ON CONFLICT(scope,member) DO UPDATE SET content=excluded.content,version=excluded.version`, scope.Key(), member, content, version)
+func writePersonal(ctx context.Context, tx *sql.Tx, key string, member, content string, version int64) error {
+	_, err := tx.ExecContext(ctx, `INSERT INTO tavern_personal(scope,member,content,version) VALUES(?,?,?,?) ON CONFLICT(scope,member) DO UPDATE SET content=excluded.content,version=excluded.version`, key, member, content, version)
 	return err
 }
 func (s *Store) UpdatePersonal(ctx context.Context, e domain.Event, expectedVersion int64, text string) (int64, error) {
-	if err := validEvent(e); err != nil {
+	if err := s.validEvent(e); err != nil {
 		return 0, err
 	}
 	if len([]rune(text)) > 6000 {
@@ -133,11 +146,11 @@ func (s *Store) UpdatePersonal(ctx context.Context, e domain.Event, expectedVers
 		return 0, err
 	}
 	defer tx.Rollback()
-	before, version, err := readPersonal(ctx, tx, e.Scope, e.UserID)
+	before, version, err := readPersonal(ctx, tx, s.key(e.Scope), e.UserID)
 	if err != nil {
 		return 0, err
 	}
-	duplicate, err := operationExists(ctx, tx, e)
+	duplicate, err := s.operationExists(ctx, tx, e)
 	if err != nil {
 		return 0, err
 	}
@@ -148,22 +161,22 @@ func (s *Store) UpdatePersonal(ctx context.Context, e domain.Event, expectedVers
 		return version, ErrConflict
 	}
 	version++
-	if err = writePersonal(ctx, tx, e.Scope, e.UserID, text, version); err != nil {
+	if err = writePersonal(ctx, tx, s.key(e.Scope), e.UserID, text, version); err != nil {
 		return 0, err
 	}
-	if err = recordMutation(ctx, tx, e, "personal", e.UserID, before, text, version); err != nil {
+	if err = s.recordMutation(ctx, tx, e, "personal", e.UserID, before, text, version); err != nil {
 		return 0, err
 	}
 	return version, tx.Commit()
 }
 func (s *Store) Revisions(ctx context.Context, e domain.Event, limit int) ([]Revision, error) {
-	if err := validEvent(e); err != nil {
+	if err := s.validEvent(e); err != nil {
 		return nil, err
 	}
 	if limit < 1 || limit > 50 {
 		limit = 10
 	}
-	rows, err := s.db.QueryContext(ctx, `SELECT id,target,actor,actor_name,event,before_data,after_data,version,created FROM tavern_revision WHERE scope=? AND (member='' OR member=?) ORDER BY id DESC LIMIT ?`, e.Scope.Key(), e.UserID, limit)
+	rows, err := s.db.QueryContext(ctx, `SELECT id,target,actor,actor_name,event,before_data,after_data,version,created FROM tavern_revision WHERE scope=? AND (member='' OR member=?) ORDER BY id DESC LIMIT ?`, s.key(e.Scope), e.UserID, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -184,7 +197,7 @@ func (s *Store) Revisions(ctx context.Context, e domain.Event, limit int) ([]Rev
 	return out, rows.Err()
 }
 func (s *Store) Undo(ctx context.Context, e domain.Event, revisionID int64) error {
-	if err := validEvent(e); err != nil {
+	if err := s.validEvent(e); err != nil {
 		return err
 	}
 	tx, err := s.db.BeginTx(ctx, nil)
@@ -192,7 +205,7 @@ func (s *Store) Undo(ctx context.Context, e domain.Event, revisionID int64) erro
 		return err
 	}
 	defer tx.Rollback()
-	duplicate, err := operationExists(ctx, tx, e)
+	duplicate, err := s.operationExists(ctx, tx, e)
 	if err != nil {
 		return err
 	}
@@ -201,7 +214,7 @@ func (s *Store) Undo(ctx context.Context, e domain.Event, revisionID int64) erro
 	}
 	var target, member, data string
 	var version int64
-	err = tx.QueryRowContext(ctx, `SELECT target,member,before_data,version FROM tavern_revision WHERE id=? AND scope=? AND (member='' OR member=?)`, revisionID, e.Scope.Key(), e.UserID).Scan(&target, &member, &data, &version)
+	err = tx.QueryRowContext(ctx, `SELECT target,member,before_data,version FROM tavern_revision WHERE id=? AND scope=? AND (member='' OR member=?)`, revisionID, s.key(e.Scope), e.UserID).Scan(&target, &member, &data, &version)
 	if errors.Is(err, sql.ErrNoRows) {
 		return ErrNotFound
 	}
@@ -211,7 +224,7 @@ func (s *Store) Undo(ctx context.Context, e domain.Event, revisionID int64) erro
 	var before, after any
 	switch target {
 	case "config":
-		current, err := readConfig(ctx, tx, e.Scope)
+		current, err := readConfig(ctx, tx, s.key(e.Scope))
 		if err != nil {
 			return err
 		}
@@ -224,12 +237,12 @@ func (s *Store) Undo(ctx context.Context, e domain.Event, revisionID int64) erro
 		}
 		restored.Version = current.Version + 1
 		version = restored.Version
-		if err = writeConfig(ctx, tx, e.Scope, restored); err != nil {
+		if err = writeConfig(ctx, tx, e.Scope, s.key(e.Scope), restored); err != nil {
 			return err
 		}
 		before, after = current, restored
 	case "personal":
-		current, v, err := readPersonal(ctx, tx, e.Scope, e.UserID)
+		current, v, err := readPersonal(ctx, tx, s.key(e.Scope), e.UserID)
 		if err != nil {
 			return err
 		}
@@ -241,12 +254,12 @@ func (s *Store) Undo(ctx context.Context, e domain.Event, revisionID int64) erro
 			return err
 		}
 		version = v + 1
-		if err = writePersonal(ctx, tx, e.Scope, e.UserID, restored, version); err != nil {
+		if err = writePersonal(ctx, tx, s.key(e.Scope), e.UserID, restored, version); err != nil {
 			return err
 		}
 		before, after = current, restored
 	case "summary":
-		current, err := readSummary(ctx, tx, e.Scope)
+		current, err := readSummary(ctx, tx, s.key(e.Scope))
 		if err != nil {
 			return err
 		}
@@ -259,24 +272,26 @@ func (s *Store) Undo(ctx context.Context, e domain.Event, revisionID int64) erro
 		}
 		restored.Version = current.Version + 1
 		version = restored.Version
-		if err = writeSummary(ctx, tx, e.Scope, restored); err != nil {
+		if err = writeSummary(ctx, tx, s.key(e.Scope), restored); err != nil {
 			return err
 		}
 		before, after = current, restored
+	case "status_shared", "status_member", "status_schema":
+		return s.undoStatus(ctx, tx, e, target, member, data, version)
 	default:
 		return fmt.Errorf("unknown revision type %q", target)
 	}
-	if err = recordMutation(ctx, tx, e, target, member, before, after, version); err != nil {
+	if err = s.recordMutation(ctx, tx, e, target, member, before, after, version); err != nil {
 		return err
 	}
 	return tx.Commit()
 }
-func writeSummary(ctx context.Context, tx *sql.Tx, scope domain.Scope, value Summary) error {
-	_, err := tx.ExecContext(ctx, `INSERT INTO tavern_summary(scope,content,checkpoint,version) VALUES(?,?,?,?) ON CONFLICT(scope) DO UPDATE SET content=excluded.content,checkpoint=excluded.checkpoint,version=excluded.version`, scope.Key(), value.Text, value.Checkpoint, value.Version)
+func writeSummary(ctx context.Context, tx *sql.Tx, key string, value Summary) error {
+	_, err := tx.ExecContext(ctx, `INSERT INTO tavern_summary(scope,content,checkpoint,version) VALUES(?,?,?,?) ON CONFLICT(scope) DO UPDATE SET content=excluded.content,checkpoint=excluded.checkpoint,version=excluded.version`, key, value.Text, value.Checkpoint, value.Version)
 	return err
 }
 func (s *Store) SetSummary(ctx context.Context, e domain.Event, expectedVersion int64, text string) error {
-	if err := validEvent(e); err != nil {
+	if err := s.validEvent(e); err != nil {
 		return err
 	}
 	if len([]rune(text)) > 16000 {
@@ -287,11 +302,11 @@ func (s *Store) SetSummary(ctx context.Context, e domain.Event, expectedVersion 
 		return err
 	}
 	defer tx.Rollback()
-	before, err := readSummary(ctx, tx, e.Scope)
+	before, err := readSummary(ctx, tx, s.key(e.Scope))
 	if err != nil {
 		return err
 	}
-	duplicate, err := operationExists(ctx, tx, e)
+	duplicate, err := s.operationExists(ctx, tx, e)
 	if err != nil {
 		return err
 	}
@@ -302,14 +317,14 @@ func (s *Store) SetSummary(ctx context.Context, e domain.Event, expectedVersion 
 		return ErrConflict
 	}
 	var last int64
-	if err = tx.QueryRowContext(ctx, `SELECT COALESCE(max(id),0) FROM tavern_turn WHERE scope=?`, e.Scope.Key()).Scan(&last); err != nil {
+	if err = tx.QueryRowContext(ctx, `SELECT COALESCE(max(id),0) FROM tavern_turn WHERE scope=?`, s.key(e.Scope)).Scan(&last); err != nil {
 		return err
 	}
 	after := Summary{Text: text, Checkpoint: last, Version: before.Version + 1}
-	if err = writeSummary(ctx, tx, e.Scope, after); err != nil {
+	if err = writeSummary(ctx, tx, s.key(e.Scope), after); err != nil {
 		return err
 	}
-	if err = recordMutation(ctx, tx, e, "summary", "", before, after, after.Version); err != nil {
+	if err = s.recordMutation(ctx, tx, e, "summary", "", before, after, after.Version); err != nil {
 		return err
 	}
 	return tx.Commit()

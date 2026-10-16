@@ -1,6 +1,6 @@
 # qq-tavern
 
-可自行部署的 QQ 机器人：角色、世界书、群规则、摘要和个人记忆均按会话隔离，直接在 QQ 内设置。当前版本为 `0.2.1-dev`，私有开发阶段；尚未进行真实 QQ 账号验收。
+可自行部署的 QQ 机器人：支持多个可切换角色，世界书、群规则、摘要、个人记忆和状态均按会话与角色隔离，直接在 QQ 内设置。当前版本为 `0.2.1-dev`，私有开发阶段。
 
 ## 快速启动
 
@@ -14,6 +14,26 @@ openssl rand -hex 32
 ```
 
 将生成的随机串填入 `.env` 的 `INTERNAL_API_TOKEN`，填写 `MODEL_BASE_URL`、`MODEL_API_KEY` 和 `MODEL_NAME`。模型服务需要支持所选协议、工具调用和配置的思考强度。默认使用 Responses、`medium`；Chat Completions 使用 `MODEL_API_MODE=chat_completions`。不会在请求失败时自动切换协议。
+
+Windows 用户先启动 Docker Desktop 并使用 Linux 容器。在项目目录的 PowerShell 中初始化配置（已有 `.env` 时跳过复制），无需安装 Bash 或 OpenSSL：
+
+```powershell
+if (-not (Test-Path -LiteralPath .env)) { Copy-Item .env.example .env }
+$tokenBytes = New-Object byte[] 32
+$rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+try { $rng.GetBytes($tokenBytes) } finally { $rng.Dispose() }
+[BitConverter]::ToString($tokenBytes).Replace('-', '').ToLowerInvariant()
+```
+
+将输出的随机串填入 `.env` 的 `INTERNAL_API_TOKEN`，并填写上述模型配置。Windows 使用以下启动入口，兼容 Windows PowerShell 5.1，无参数时显示选择菜单：
+
+```powershell
+.\scripts\start.cmd qr             # 扫码连接，后续启动复用绑定
+.\scripts\start.cmd manual         # 使用 .env 中的 AppID/AppSecret
+.\scripts\start.cmd qr --rebind    # 更换绑定的机器人
+```
+
+每次按需运行其中一条。`start.cmd` 调用同目录的 `start.ps1`，只为该次 PowerShell 进程设置执行策略，不修改系统设置。也可直接运行 `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\start.ps1 qr`；PowerShell 7 可运行 `.\scripts\start.ps1 qr`。下文的 `./scripts/start.sh` 在 Windows 上替换为 `.\scripts\start.cmd`，Compose 状态和日志命令保持一致。
 
 ### 方式一：扫码连接
 
@@ -56,6 +76,36 @@ Gateway 健康检查要求 QQ 已连接。连接失败时 Worker 会等待；检
 
 完整语法、世界书关键词与个人记忆操作见 [QQ 命令说明](docs/COMMANDS.md)。
 
+## 多角色与状态查询
+
+现有配置自动保留为第一个角色档案。先用 `/角色 列表` 查看已有角色；改名保留数据，新建角色从空白档案开始。群内切换对全群生效，切回来继续该角色原有的记忆与状态。
+
+```text
+/角色 名称 丛雨
+/角色状态
+/好感度
+/角色 新建 芳乃
+/角色 切换 丛雨
+/好感度 丛雨
+/状态记录
+```
+
+默认好感度为 20，范围 0～100，每轮最多增减 3；好感度和关系按成员分别保存，心情由角色共享。模型在有意义的互动中按需提交更新，正常回复确认发送成功后才保存。普通回复不附加状态栏，查询直接读数据库，不调用模型。细微变化可能不会被模型记录；`/状态设置 好感度 30` 可手动校正，`/状态重置 好感度` 恢复初始值。
+
+自定义状态示例：
+
+```text
+/状态项 添加 信任度 数值 成员
+/状态项 设置 信任度 初始值 10
+/状态项 设置 信任度 规则 遵守承诺时增加，欺骗时降低
+/状态项 添加 当前地点 文本 角色
+/状态设置 当前地点 神社
+```
+
+输入 `/状态项` 查看配置及完整语法。成员项只查询或修改发起者自己的值；共享项沿用群公共设置权限。在群内查询，结果会回复到该群。
+
+首次升级会将 worker 数据库迁移到版本 2。部署前停止 worker 并备份完整 worker 数据卷；回滚需同时恢复旧镜像与旧数据库备份。角色状态不随 `/重置上下文` 清除，已有 QQ 登录数据卷无需重新绑定。
+
 ## 架构和数据
 
 ```mermaid
@@ -71,11 +121,12 @@ flowchart LR
 
 每套 Compose 对应一个机器人，支持多个群。Gateway 保管 QQ Secret，Worker 保管模型密钥；两者使用相同 AppID 推导队列标识。没有订单、套餐、订阅或节点控制服务依赖。
 
-- **角色**：名称、描述、性格和场景，每群独立。
+- **角色**：每会话可创建多个档案，分别保存名称、描述、性格、场景及全部记忆；群内共用当前角色。
+- **状态**：默认好感度、关系、心情，可自定义数值或文本项，支持成员独立或角色共享、变化记录与版本检查后的撤销。
 - **世界书**：长期事实，常驻或中文关键词触发，支持启停、优先级和字符预算。
 - **群规则**：群内回复习惯和作者注释，默认每轮注入。
 - **摘要**：每 3 个已完成回复轮次或空闲 2 分钟后生成，由后台每 15 秒检查。失败保留旧摘要，2 分钟后再尝试。
-- **个人记忆**：只加载当前成员在当前群的内容；私聊使用独立作用域。
+- **个人记忆**：只加载当前成员在当前会话、当前角色下的内容；私聊使用独立作用域。
 
 明确说“记住……”才保存长期内容。群内默认公共；“回复我时／我的偏好”进入个人记忆；“以后每次回复……”进入群规则。普通聊天不会自动抽取长期事实。自然语言入口使用明确前缀匹配，复杂表达请使用命令。
 
@@ -144,6 +195,8 @@ npm --prefix onboard ci --ignore-scripts
 npm --prefix onboard test
 python3 scripts/start_test.py
 ```
+
+Windows 启动脚本测试使用模拟 Docker，不启动容器：`python scripts/start_windows_test.py`。CI 在 Windows PowerShell 5.1 和 PowerShell 7 下分别验证。
 
 测试使用临时 SQLite、临时 Redis、模拟 QQ HTTP/WebSocket 和模拟模型服务，不需要真实账号或模型费用。扫码辅助工具的开发测试另需 Node.js 22+。CI 安装 Redis、测试两种启动方式并构建应用和登录容器。构建两个镜像后，可运行 `python3 scripts/test_login_docker.py` 验证真实容器的权限和凭据交接；该测试只使用合成凭据，容器禁用网络。环境变量检查可执行 `ROLE=worker qq-tavern check` 或 `ROLE=gateway qq-tavern check`。
 

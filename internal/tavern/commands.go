@@ -13,6 +13,7 @@ import (
 
 type Service struct{ store *state.Store }
 type Result struct {
+	Store          *state.Store
 	Handled        bool
 	Text           string
 	RequestSummary bool
@@ -58,11 +59,16 @@ func cut(text string, n int) string {
 func (s *Service) Handle(ctx context.Context, e domain.Event) (Result, error) {
 	text := strings.TrimSpace(e.Text)
 	command, args := splitCommand(text)
-	known := map[string]bool{"/酒馆": true, "/角色": true, "/群规则": true, "/世界书": true, "/摘要": true, "/记住": true, "/记到群": true, "/记忆": true, "/群记忆": true, "/记忆状态": true, "/修改记录": true, "/撤销修改": true, "/重置上下文": true}
+	known := map[string]bool{"/角色状态": true, "/好感度": true, "/状态记录": true, "/状态设置": true, "/状态重置": true, "/状态项": true, "/酒馆": true, "/角色": true, "/群规则": true, "/世界书": true, "/摘要": true, "/记住": true, "/记到群": true, "/记忆": true, "/群记忆": true, "/记忆状态": true, "/修改记录": true, "/撤销修改": true, "/重置上下文": true}
 	natural, explicit := explicitMemory(text)
 	if !known[command] && !explicit {
 		return Result{}, nil
 	}
+	bound, err := s.store.BindActive(ctx, e.Scope)
+	if err != nil {
+		return Result{}, err
+	}
+	s = New(bound)
 	snap, err := s.store.Snapshot(ctx, e.Scope, e.UserID)
 	if err != nil {
 		return Result{}, err
@@ -74,9 +80,13 @@ func (s *Service) Handle(ctx context.Context, e domain.Event) (Result, error) {
 	if errors.Is(err, state.ErrNotFound) {
 		return reply("当前会话没有这条记录，或你无权操作它。"), nil
 	}
+	result.Store = s.store
 	return result, err
 }
 func (s *Service) handle(ctx context.Context, e domain.Event, command, args, natural string, explicit bool, snap state.Snapshot) (Result, error) {
+	if result, handled, err := s.roleStatusCommand(ctx, e, command, args, snap); handled {
+		return result, err
+	}
 	update := func(change func(*state.Config) error) (Result, error) {
 		_, err := s.store.UpdateConfig(ctx, e, snap.Config.Version, change)
 		if err != nil {
@@ -86,7 +96,7 @@ func (s *Service) handle(ctx context.Context, e domain.Event, command, args, nat
 	}
 	switch command {
 	case "/酒馆":
-		return reply(fmt.Sprintf("%s\n当前角色：%s；设置版本：%d；世界书：%d 条。", help, shown(snap.Config.Character.Name), snap.Config.Version, len(snap.Config.Entries))), nil
+		return reply(fmt.Sprintf("%s\n当前角色：%s；设置版本：%d；世界书：%d 条。", help+"\n"+statusHelp, shown(snap.Config.Character.Name), snap.Config.Version, len(snap.Config.Entries))), nil
 	case "/角色":
 		if args == "" {
 			c := snap.Config.Character
@@ -224,7 +234,7 @@ func (s *Service) handle(ctx context.Context, e domain.Event, command, args, nat
 		return reply(strings.Join(lines, "\n")), nil
 	case "/重置上下文":
 		err := s.store.ResetContext(ctx, e)
-		return reply("已清除当前会话聊天历史和摘要。角色、群规则、世界书和个人记忆已保留。"), err
+		return reply("已清除当前角色的聊天历史和摘要。角色、群规则、世界书、个人记忆和状态已保留。"), err
 	case "/记到群":
 		if e.Scope.Kind != "group" {
 			return reply("请在目标群内使用 /记到群，私聊不能修改群记忆。"), nil

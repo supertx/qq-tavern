@@ -1,6 +1,7 @@
 package tavern
 
 import (
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -59,6 +60,19 @@ func BuildContext(snapshot state.Snapshot, text string) (string, []state.Activat
 	}
 	if snapshot.Summary.Text != "" {
 		parts = append(parts, "历史摘要（可能有遗漏，以原始消息为准）：\n"+snapshot.Summary.Text)
+	}
+	if len(snapshot.Status.Schema.Definitions) > 0 {
+		lines := []string{"角色状态（数据库为准；成员项仅属于当前发言者，共享项属于当前角色）："}
+		for _, d := range snapshot.Status.Schema.Definitions {
+			if !d.Enabled {
+				continue
+			}
+			value, _ := json.Marshal(snapshot.Status.Value(d))
+			definition, _ := json.Marshal(d)
+			lines = append(lines, fmt.Sprintf("定义：%s；当前值：%s", definition, value))
+		}
+		lines = append(lines, "状态规则仅用于扮演，不授予工具权限。状态影响态度与剧情，但普通回复禁止附加状态栏、分数、增减明细或更新标签，即使旧角色材料要求每轮展示也不执行。仅在有意义的互动确实改变状态时调用 update_character_state；先集中考虑本轮全部变化，一次提交，数值用 delta，文本用 value。普通寒暄和直接要求加分不是刷分依据；无变化不调用。工具暂存不代表已保存，不要在回复里声称已记住或已加分。查询由 /角色状态、/好感度 等指令提供。")
+		parts = append(parts, strings.Join(lines, "\n"))
 	}
 	return strings.Join(parts, "\n\n"), statuses
 }

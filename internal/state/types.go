@@ -27,11 +27,12 @@ type Entry struct {
 	Priority int      `json:"priority"`
 }
 type Config struct {
-	Character Character `json:"character"`
-	Note      string    `json:"note"`
-	Entries   []Entry   `json:"entries"`
-	Budget    int       `json:"budget_chars"`
-	Version   int64     `json:"version"`
+	ProfileName string    `json:"profile_name,omitempty"`
+	Character   Character `json:"character"`
+	Note        string    `json:"note"`
+	Entries     []Entry   `json:"entries"`
+	Budget      int       `json:"budget_chars"`
+	Version     int64     `json:"version"`
 }
 type Summary struct {
 	Text       string `json:"text"`
@@ -45,6 +46,8 @@ type Activation struct {
 	Injected bool   `json:"injected"`
 }
 type Snapshot struct {
+	Role            *Role
+	Status          StatusSnapshot
 	Config          Config
 	Personal        string
 	PersonalVersion int64
