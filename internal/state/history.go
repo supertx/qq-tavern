@@ -49,6 +49,9 @@ func (s *Store) ResetContext(ctx context.Context, e domain.Event) error {
 		return err
 	}
 	defer tx.Rollback()
+	if err = authorizeCommand(ctx, tx, ContextManage); err != nil {
+		return err
+	}
 	duplicate, err := s.operationExists(ctx, tx, e)
 	if err != nil {
 		return err
@@ -57,6 +60,9 @@ func (s *Store) ResetContext(ctx context.Context, e domain.Event) error {
 		return nil
 	}
 	if _, err = tx.ExecContext(ctx, `DELETE FROM tavern_turn WHERE scope=?`, s.key(e.Scope)); err != nil {
+		return err
+	}
+	if _, err = tx.ExecContext(ctx, `DELETE FROM tavern_recent WHERE scope=?`, s.key(e.Scope)); err != nil {
 		return err
 	}
 	current, err := readSummary(ctx, tx, s.key(e.Scope))

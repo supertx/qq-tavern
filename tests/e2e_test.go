@@ -246,6 +246,9 @@ func TestStandaloneGatewayRedisWorkerQQ(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if _, err = store.SetPolicy(ctx, 0, map[state.CommandGroup]bool{state.WorldEdit: true, state.PersonalMemory: true, state.RoleEdit: true}); err != nil {
+		t.Fatal(err)
+	}
 	defer store.Close()
 	client, err := model.New(model.Config{BaseURL: provider.URL, APIKey: "dummy-model-key", Mode: model.Responses}, nil)
 	if err != nil {

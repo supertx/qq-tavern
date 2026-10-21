@@ -46,6 +46,7 @@ func TestStatusCommandsDoNotCallModelAndSwitchAllRoleData(t *testing.T) {
 		t.Fatal(text)
 	}
 	run("bob", "/角色 新建 芳乃")
+	run("bob", "/角色 切换 芳乃")
 	if text := run("alice", "/角色状态"); !strings.Contains(text, "芳乃") || strings.Contains(text, "当前地点") {
 		t.Fatal(text)
 	}

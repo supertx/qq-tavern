@@ -119,6 +119,9 @@ func (s *Store) UpdateConfig(ctx context.Context, e domain.Event, expectedVersio
 		after.ProfileName = strings.TrimSpace(after.Character.Name)
 	}
 	after.Version = before.Version + 1
+	if err = authorizeCommand(ctx, tx, configGroups(before, after)...); err != nil {
+		return before, err
+	}
 	if err = validateConfig(after); err != nil {
 		return before, err
 	}
@@ -146,6 +149,9 @@ func (s *Store) UpdatePersonal(ctx context.Context, e domain.Event, expectedVers
 		return 0, err
 	}
 	defer tx.Rollback()
+	if err = authorizeCommand(ctx, tx, PersonalMemory); err != nil {
+		return 0, err
+	}
 	before, version, err := readPersonal(ctx, tx, s.key(e.Scope), e.UserID)
 	if err != nil {
 		return 0, err
@@ -237,11 +243,17 @@ func (s *Store) Undo(ctx context.Context, e domain.Event, revisionID int64) erro
 		}
 		restored.Version = current.Version + 1
 		version = restored.Version
+		if err = authorizeCommand(ctx, tx, configGroups(current, restored)...); err != nil {
+			return err
+		}
 		if err = writeConfig(ctx, tx, e.Scope, s.key(e.Scope), restored); err != nil {
 			return err
 		}
 		before, after = current, restored
 	case "personal":
+		if err = authorizeCommand(ctx, tx, PersonalMemory); err != nil {
+			return err
+		}
 		current, v, err := readPersonal(ctx, tx, s.key(e.Scope), e.UserID)
 		if err != nil {
 			return err
@@ -259,6 +271,9 @@ func (s *Store) Undo(ctx context.Context, e domain.Event, revisionID int64) erro
 		}
 		before, after = current, restored
 	case "summary":
+		if err = authorizeCommand(ctx, tx, ContextManage); err != nil {
+			return err
+		}
 		current, err := readSummary(ctx, tx, s.key(e.Scope))
 		if err != nil {
 			return err
@@ -277,6 +292,9 @@ func (s *Store) Undo(ctx context.Context, e domain.Event, revisionID int64) erro
 		}
 		before, after = current, restored
 	case "status_shared", "status_member", "status_schema":
+		if err = authorizeCommand(ctx, tx, StatusManage); err != nil {
+			return err
+		}
 		return s.undoStatus(ctx, tx, e, target, member, data, version)
 	default:
 		return fmt.Errorf("unknown revision type %q", target)
@@ -302,6 +320,9 @@ func (s *Store) SetSummary(ctx context.Context, e domain.Event, expectedVersion 
 		return err
 	}
 	defer tx.Rollback()
+	if err = authorizeCommand(ctx, tx, ContextManage); err != nil {
+		return err
+	}
 	before, err := readSummary(ctx, tx, s.key(e.Scope))
 	if err != nil {
 		return err

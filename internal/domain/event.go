@@ -27,23 +27,34 @@ func (s Scope) Validate() error {
 }
 
 type Quote struct {
-	AuthorID   string   `json:"author_id,omitempty"`
-	AuthorName string   `json:"author_name,omitempty"`
-	Text       string   `json:"text"`
-	Images     []string `json:"images,omitempty"`
+	AuthorID   string           `json:"author_id,omitempty"`
+	AuthorName string           `json:"author_name,omitempty"`
+	Text       string           `json:"text"`
+	Images     []string         `json:"images,omitempty"`
+	Files      []FileAttachment `json:"files,omitempty"`
+}
+type FileAttachment struct {
+	URL         string `json:"url"`
+	Filename    string `json:"filename"`
+	ContentType string `json:"content_type"`
+	Size        int64  `json:"size,omitempty"`
 }
 type Event struct {
-	ID          string    `json:"id"`
-	MessageID   string    `json:"message_id"`
-	Scope       Scope     `json:"scope"`
-	UserID      string    `json:"user_id"`
-	UserName    string    `json:"user_name"`
-	Text        string    `json:"text"`
-	Images      []string  `json:"images,omitempty"`
-	Quotes      []Quote   `json:"quotes,omitempty"`
-	ObserveOnly bool      `json:"observe_only,omitempty"`
-	CreatedAt   time.Time `json:"created_at"`
-	Deadline    time.Time `json:"deadline"`
+	ID                     string           `json:"id"`
+	MessageID              string           `json:"message_id"`
+	Scope                  Scope            `json:"scope"`
+	UserID                 string           `json:"user_id"`
+	UserName               string           `json:"user_name"`
+	Text                   string           `json:"text"`
+	Images                 []string         `json:"images,omitempty"`
+	Files                  []FileAttachment `json:"files,omitempty"`
+	Quotes                 []Quote          `json:"quotes,omitempty"`
+	ObserveOnly            bool             `json:"observe_only,omitempty"`
+	AuthorBot              bool             `json:"author_bot,omitempty"`
+	MessageIndex           string           `json:"message_index,omitempty"`
+	ReferencedMessageIndex string           `json:"referenced_message_index,omitempty"`
+	CreatedAt              time.Time        `json:"created_at"`
+	Deadline               time.Time        `json:"deadline"`
 }
 
 func (e Event) Validate() error {

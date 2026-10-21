@@ -239,7 +239,7 @@ func TestV1MigrationPreservesLegacyAndVersion(t *testing.T) {
 	}
 	var version int
 	mustState(t, s.DB().QueryRow(`PRAGMA user_version`).Scan(&version))
-	if version != 2 {
+	if version != 4 {
 		t.Fatal(version)
 	}
 	mustState(t, s.Close())

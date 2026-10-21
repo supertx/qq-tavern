@@ -43,6 +43,9 @@ func (s *Service) roleStatusCommand(ctx context.Context, e domain.Event, command
 				return reply("用法：/角色 " + action + " 名称"), true, nil
 			}
 			err := s.store.SelectRole(ctx, e, name, action == "新建")
+			if action == "新建" {
+				return reply("已创建角色「" + name + "」。使用 /角色 切换 " + name + " 切换（需要角色切换权限）。"), true, err
+			}
 			return reply("当前角色已切换为「" + name + "」，本会话所有成员生效。"), true, err
 		}
 		return Result{}, false, nil

@@ -228,7 +228,7 @@ func TestFutureSchemaRejectedWithoutDowngrade(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.DB().Exec(`PRAGMA user_version=3`); err != nil {
+	if _, err = s.DB().Exec(`PRAGMA user_version=5`); err != nil {
 		t.Fatal(err)
 	}
 	if err = s.Close(); err != nil {

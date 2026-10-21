@@ -1,10 +1,13 @@
 package worker
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"image"
+	"image/png"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -144,7 +147,7 @@ func TestImageUsesRemainingBudgetAndSendsOnce(t *testing.T) {
 		if r.URL.Path != "/v1/images/generations" || r.Header.Get("Authorization") != "Bearer dummy-image-key" {
 			t.Error("image endpoint or credentials incorrect")
 		}
-		return &http.Response{StatusCode: 200, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(`{"data":[{"b64_json":"aW1hZ2U="}]}`)), Request: r}, nil
+		return &http.Response{StatusCode: 200, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(`{"data":[{"b64_json":"` + base64.StdEncoding.EncodeToString(imageFixture(t)) + `"}]}`)), Request: r}, nil
 	})}
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
@@ -154,7 +157,7 @@ func TestImageUsesRemainingBudgetAndSendsOnce(t *testing.T) {
 	if !strings.Contains(first, `"sent":true`) || first != second || providerCalls != 1 || len(sender.requests) != 1 || !session.Sent {
 		t.Fatalf("first=%s second=%s calls=%d sends=%d", first, second, providerCalls, len(sender.requests))
 	}
-	if sender.requests[0].Event.Scope.ID != "g" || string(sender.requests[0].Media.Data) != "image" {
+	if sender.requests[0].Event.Scope.ID != "g" || !bytes.Equal(sender.requests[0].Media.Data, imageFixture(t)) {
 		t.Fatal("incorrect media target or body")
 	}
 }
@@ -180,4 +183,13 @@ func TestOversizedGeneratedMediaRejectedBeforeSend(t *testing.T) {
 	if len(sender.requests) != 0 {
 		t.Fatal("oversized output reached sender")
 	}
+}
+
+func imageFixture(t *testing.T) []byte {
+	t.Helper()
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, image.NewNRGBA(image.Rect(0, 0, 2, 2))); err != nil {
+		t.Fatal(err)
+	}
+	return buf.Bytes()
 }

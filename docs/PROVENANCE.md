@@ -1,6 +1,6 @@
 # 代码来源与开源边界
 
-记录日期：2026-10-15。此仓库是独立项目，首版以私有仓库交付；公开发布仍需完成独立测试机器人的实际验收。
+记录日期：2026-10-15。此仓库是独立项目，本文记录代码来源、协议依据和第三方许可；实际验收范围见 [验收记录](VALIDATION.md)。
 
 ## 本项目代码
 
@@ -9,11 +9,11 @@
 | 模块 | 实现来源与边界 |
 | --- | --- |
 | `internal/qq`、`internal/domain` | 根据 QQ 官方消息、鉴权、连接和发送协议独立实现事件标准化、身份标识与传输 |
-| `internal/eventbus` | 根据 Redis RESP／Streams 协议独立实现消息队列交互；不引入旧平台队列代码 |
+| `internal/eventbus` | 根据 Redis RESP／Streams 协议独立实现消息队列交互；不引入旧项目队列代码 |
 | `internal/model` | 根据公开的 Responses／Chat Completions 接口协议独立实现请求、返回项及工具配对 |
 | `internal/state`、`internal/tavern` | 根据本项目角色、世界书、注释、摘要、隔离和命令规格独立实现；无 SillyTavern 源码 |
 | `internal/worker`、`internal/netguard` | 根据本项目整轮预算、工具权限、发送去重和外部访问要求独立实现 |
-| `internal/config`、`cmd`、构建与测试文件 | 为独立部署新编写，不依赖订单、套餐、控制器、节点代理或线上配置 |
+| `internal/config`、`cmd`、构建与测试文件 | 为本项目独立编写部署、配置、构建与测试流程 |
 | `onboard`、`scripts/start.sh` | 为本项目独立编写终端扫码与启动流程；通过官方 SDK 公开 API 获取凭据，没有复制旧项目登录服务 |
 | Go 外部模块及许可文本 | 通过 Go Modules 引入，保留原许可证；详见 [第三方声明](../THIRD_PARTY_NOTICES.md) |
 

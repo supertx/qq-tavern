@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/supertx/qq-tavern/internal/admin"
 	"github.com/supertx/qq-tavern/internal/config"
 	"github.com/supertx/qq-tavern/internal/domain"
 	"github.com/supertx/qq-tavern/internal/eventbus"
@@ -117,6 +118,7 @@ func run() error {
 			return err
 		}
 		mux := http.NewServeMux()
+		mux.Handle(admin.Prefix+"/", admin.NewHandler(store, domain.Key(cfg.AppID), cfg.AdminToken))
 		mux.HandleFunc("GET /health/live", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(200); fmt.Fprintln(w, "live") })
 		mux.HandleFunc("GET /health/ready", func(w http.ResponseWriter, r *http.Request) {
 			check, done := context.WithTimeout(r.Context(), 2*time.Second)

@@ -22,6 +22,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/supertx/qq-tavern/internal/domain"
+	"github.com/supertx/qq-tavern/internal/netguard"
 	_ "modernc.org/sqlite"
 )
 
@@ -39,6 +40,7 @@ type Gateway struct {
 	cfg          Config
 	publisher    Publisher
 	client       *http.Client
+	mediaClient  *http.Client
 	db           *sql.DB
 	botID        string
 	tokenMu      sync.Mutex
@@ -78,12 +80,12 @@ func NewGateway(cfg Config, publisher Publisher) (*Gateway, error) {
 		return nil, err
 	}
 	db.SetMaxOpenConns(1)
-	_, err = db.Exec(`PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000; CREATE TABLE IF NOT EXISTS send_receipts (request_key TEXT PRIMARY KEY,event_key TEXT NOT NULL,seq INTEGER NOT NULL,payload_hash TEXT NOT NULL,state TEXT NOT NULL,created INTEGER NOT NULL,UNIQUE(event_key,seq));`)
+	_, err = db.Exec(`PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000; CREATE TABLE IF NOT EXISTS gateway_session(id INTEGER PRIMARY KEY CHECK(id=1),session TEXT NOT NULL,sequence INTEGER NOT NULL); CREATE TABLE IF NOT EXISTS send_receipts (request_key TEXT PRIMARY KEY,event_key TEXT NOT NULL,seq INTEGER NOT NULL,payload_hash TEXT NOT NULL,state TEXT NOT NULL,created INTEGER NOT NULL,UNIQUE(event_key,seq));`)
 	if err != nil {
 		db.Close()
 		return nil, err
 	}
-	return &Gateway{cfg: cfg, publisher: publisher, client: &http.Client{Timeout: 60 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}, db: db, botID: domain.Key(cfg.AppID)}, nil
+	return &Gateway{cfg: cfg, publisher: publisher, client: &http.Client{Timeout: 60 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}, mediaClient: netguard.NewClient(), db: db, botID: domain.Key(cfg.AppID)}, nil
 }
 func (g *Gateway) Close() error { return g.db.Close() }
 
@@ -133,11 +135,18 @@ func (g *Gateway) Handler() http.Handler {
 			if errors.Is(err, ErrAmbiguous) {
 				status = http.StatusConflict
 			}
+			var failure *APIError
+			if errors.As(err, &failure) {
+				w.Header().Set("X-QQ-Status", strconv.Itoa(failure.Status))
+				w.Header().Set("X-QQ-Code", strconv.Itoa(failure.Code))
+			}
 			http.Error(w, err.Error(), status)
 			return
 		}
 		w.WriteHeader(http.StatusNoContent)
 	})
+	mux.HandleFunc("POST /media", g.handleMedia)
+	mux.HandleFunc("POST /document", g.handleDocument)
 	return mux
 }
 
@@ -153,6 +162,7 @@ func (g *Gateway) accessToken(ctx context.Context) (string, error) {
 		return "", err
 	}
 	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("User-Agent", "qq-traven/0.2")
 	response, err := g.client.Do(request)
 	if err != nil {
 		return "", errors.New("QQ access token request failed")
@@ -181,7 +191,7 @@ func (g *Gateway) accessToken(ctx context.Context) (string, error) {
 	return g.token, nil
 }
 
-func (g *Gateway) api(ctx context.Context, method, path string, body any, target any) error {
+func (g *Gateway) apiOnce(ctx context.Context, method, path string, body any, target any) error {
 	token, err := g.accessToken(ctx)
 	if err != nil {
 		return err
@@ -200,6 +210,7 @@ func (g *Gateway) api(ctx context.Context, method, path string, body any, target
 	req.Header.Set("Authorization", "QQBot "+token)
 	req.Header.Set("X-Union-Appid", g.cfg.AppID)
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", "qq-traven/0.2")
 	response, err := g.client.Do(req)
 	if err != nil {
 		return errors.New("QQ API transport failed; delivery may be uncertain")
@@ -219,7 +230,7 @@ func (g *Gateway) api(ctx context.Context, method, path string, body any, target
 			g.tokenExpires = time.Time{}
 			g.tokenMu.Unlock()
 		}
-		return fmt.Errorf("QQ API rejected: HTTP %d code %d", response.StatusCode, failure.Code)
+		return &APIError{Status: response.StatusCode, Code: failure.Code, RetryAfter: response.Header.Get("Retry-After")}
 	}
 	if target != nil && len(raw) > 0 {
 		if err = json.Unmarshal(raw, target); err != nil {
@@ -237,6 +248,9 @@ func (g *Gateway) Run(ctx context.Context) error {
 	}
 	var session string
 	var sequence int64
+	if err := g.db.QueryRowContext(ctx, `SELECT session,sequence FROM gateway_session WHERE id=1`).Scan(&session, &sequence); err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return err
+	}
 	backoff := time.Second
 	for ctx.Err() == nil {
 		started := time.Now()
@@ -276,7 +290,7 @@ func (g *Gateway) connect(ctx context.Context, session *string, sequence *int64)
 	if endpoint.URL == "" {
 		return errors.New("QQ gateway returned no websocket URL")
 	}
-	conn, _, err := websocket.DefaultDialer.DialContext(ctx, endpoint.URL, nil)
+	conn, _, err := websocket.DefaultDialer.DialContext(ctx, endpoint.URL, http.Header{"User-Agent": {"qq-traven/0.2"}})
 	if err != nil {
 		return errors.New("QQ websocket dial failed")
 	}
@@ -367,6 +381,10 @@ func (g *Gateway) connect(ctx context.Context, session *string, sequence *int64)
 			case 9:
 				*session = ""
 				*sequence = 0
+				g.invalidateToken()
+				if _, e := g.db.ExecContext(ctx, "DELETE FROM gateway_session"); e != nil {
+					return e
+				}
 				return errors.New("QQ session invalid")
 			case 0:
 				if p.Type == "READY" {
@@ -378,6 +396,7 @@ func (g *Gateway) connect(ctx context.Context, session *string, sequence *int64)
 					}
 					*session = ready.Session
 					g.online.Store(true)
+					slog.Info("QQ websocket ready")
 				} else if p.Type == "RESUMED" {
 					g.online.Store(true)
 				} else {
@@ -393,6 +412,9 @@ func (g *Gateway) connect(ctx context.Context, session *string, sequence *int64)
 				}
 				if p.Sequence != nil {
 					*sequence = *p.Sequence
+					if _, e := g.db.ExecContext(ctx, `INSERT INTO gateway_session(id,session,sequence) VALUES(1,?,?) ON CONFLICT(id) DO UPDATE SET session=excluded.session,sequence=excluded.sequence`, *session, *sequence); e != nil {
+						return e
+					}
 				}
 			}
 		}

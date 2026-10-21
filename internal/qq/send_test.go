@@ -258,10 +258,24 @@ func TestWebsocketResumeAfterPublishAndNoCursorAdvanceOnFailure(t *testing.T) {
 			if session != "session" || sequence != expected {
 				t.Fatalf("session=%s seq=%d", session, sequence)
 			}
-			if err := g.connect(context.Background(), &session, &sequence); err == nil {
-				t.Fatal("second reconnect not returned")
+			// A new Gateway must resume from SQLite, not the old local cursor.
+			path := g.cfg.DBPath
+			if err := g.Close(); err != nil {
+				t.Fatal(err)
 			}
-			second := <-identifies
+			g = newTestGateway(t, api.URL, path, p)
+			ctx, cancel := context.WithCancel(context.Background())
+			done := make(chan error, 1)
+			go func() { done <- g.Run(ctx) }()
+			var second payload
+			select {
+			case second = <-identifies:
+			case <-time.After(3 * time.Second):
+				cancel()
+				t.Fatal("restart did not resume")
+			}
+			cancel()
+			<-done
 			var resume struct {
 				Session  string `json:"session_id"`
 				Sequence int64  `json:"seq"`

@@ -2,6 +2,7 @@ package worker
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"io"
 	"net/http"
@@ -35,7 +36,7 @@ func TestUncertainMediaDoesNotAppendGenericFailure(t *testing.T) {
 	svc.tools.cfg.ImageKey = "dummy"
 	svc.tools.cfg.ImageModel = "dummy-image"
 	svc.tools.client = &http.Client{Transport: toolsTransport(func(*http.Request) (*http.Response, error) {
-		return &http.Response{StatusCode: 200, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(`{"data":[{"b64_json":"aW1hZ2U="}]}`))}, nil
+		return &http.Response{StatusCode: 200, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(`{"data":[{"b64_json":"` + base64.StdEncoding.EncodeToString(imageFixture(t)) + `"}]}`))}, nil
 	})}
 	if err := svc.Handle(context.Background(), workerEvent("uncertain", "group", "member", "画一幅风景")); err == nil {
 		t.Fatal("expected provider failure")

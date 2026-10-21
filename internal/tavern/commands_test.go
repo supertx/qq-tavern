@@ -17,6 +17,7 @@ func TestRememberCommandsAndOrdinaryChat(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer s.Close()
+	enableCommands(t, s)
 	service := New(s)
 	ctx := context.Background()
 	e := domain.Event{ID: "one", MessageID: "one", Scope: domain.Scope{BotID: "bot", Kind: "group", ID: "group"}, UserID: "alice", UserName: "同名", Deadline: time.Now().Add(time.Minute)}
@@ -74,6 +75,7 @@ func TestWorldbookCommandsAndActivationPersistence(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer s.Close()
+	enableCommands(t, s)
 	svc := New(s)
 	ctx := context.Background()
 	e := domain.Event{Scope: domain.Scope{BotID: "bot", Kind: "group", ID: "group"}, UserID: "alice", Deadline: time.Now().Add(time.Minute)}
@@ -114,6 +116,17 @@ func TestWorldbookCommandsAndActivationPersistence(t *testing.T) {
 	result, err = svc.Handle(ctx, e)
 	if err != nil || !strings.Contains(result.Text, "仅有") {
 		t.Fatal(result, err)
+	}
+}
+
+func enableCommands(t *testing.T, s *state.Store) {
+	t.Helper()
+	groups := map[state.CommandGroup]bool{}
+	for _, g := range state.CommandGroups() {
+		groups[g.ID] = true
+	}
+	if _, err := s.SetPolicy(context.Background(), 0, groups); err != nil {
+		t.Fatal(err)
 	}
 }
 func TestActivationChinesePriorityAndBudget(t *testing.T) {

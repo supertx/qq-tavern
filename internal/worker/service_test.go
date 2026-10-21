@@ -46,6 +46,15 @@ func workerFixture(t *testing.T, generator Generator) (*Service, *state.Store, *
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = store.Close() })
+	// Legacy behavior tests explicitly opt into QQ editing. New policy tests use
+	// a fresh store or close these groups before dispatching any command.
+	groups := map[state.CommandGroup]bool{}
+	for _, g := range state.CommandGroups() {
+		groups[g.ID] = true
+	}
+	if _, err = store.SetPolicy(context.Background(), 0, groups); err != nil {
+		t.Fatal(err)
+	}
 	sender := &recordingSender{}
 	svc, err := New(config.Config{AppID: "test-app", Model: "test-model", SummaryModel: "summary-model", Mode: model.Responses, Effort: "high"}, store, generator, sender)
 	if err != nil {

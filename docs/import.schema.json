@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "qq-tavern.bundle version 1",
+  "description": "UTF-8 JSON, at most 8 MiB. Role names must be unique within a bundle. Existing roles are patched by name; supplied entries replace the whole worldbook. The server also validates combined character lengths and existing data.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "version", "roles"],
+  "properties": {
+    "format": {"const": "qq-tavern.bundle"},
+    "version": {"const": 1},
+    "roles": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 100,
+      "items": {"$ref": "#/$defs/role"}
+    }
+  },
+  "$defs": {
+    "role": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "type": "string", "minLength": 1, "maxLength": 100,
+          "pattern": "^[^\\s](?:[^\\r\\n]*[^\\s])?$",
+          "description": "Exact existing profile name, or a new unique name. No leading/trailing whitespace or newlines."
+        },
+        "character": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Only supplied fields change. Description, personality and scenario together must not exceed 12000 Unicode characters.",
+          "properties": {
+            "name": {"type": "string", "minLength": 1, "maxLength": 100, "description": "If supplied, must equal the role name."},
+            "description": {"type": "string", "maxLength": 12000},
+            "personality": {"type": "string", "maxLength": 12000},
+            "scenario": {"type": "string", "maxLength": 12000}
+          }
+        },
+        "note": {"type": "string", "maxLength": 6000},
+        "worldbook": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "budget_chars": {"type": "integer", "minimum": 0, "maximum": 24000, "default": 6000},
+            "entries": {
+              "type": "array", "maxItems": 200,
+              "description": "Replace ALL existing entries. An empty array clears the worldbook.",
+              "items": {"$ref": "#/$defs/entry"}
+            }
+          }
+        }
+      }
+    },
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["title", "content"],
+      "properties": {
+        "title": {"type": "string", "minLength": 1, "maxLength": 100, "pattern": "\\S"},
+        "content": {"type": "string", "minLength": 1, "maxLength": 6000, "pattern": "\\S"},
+        "constant": {"type": "boolean", "default": false},
+        "enabled": {"type": "boolean", "default": true},
+        "priority": {"type": "integer", "minimum": 0, "maximum": 100, "default": 50},
+        "keywords": {
+          "type": "array", "maxItems": 20,
+          "items": {"type": "string", "minLength": 1, "maxLength": 100, "pattern": "\\S"}
+        }
+      },
+      "if": {"required": ["constant"], "properties": {"constant": {"const": true}}},
+      "else": {"required": ["keywords"], "properties": {"keywords": {"minItems": 1}}}
+    }
+  }
+}

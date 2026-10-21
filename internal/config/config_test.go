@@ -31,6 +31,28 @@ func TestMissingConfig(t *testing.T) {
 	}
 }
 
+func TestAdminTokenIsOptionalAndIndependent(t *testing.T) {
+	t.Setenv("QQ_APP_ID", "test-app")
+	t.Setenv("QQ_APP_SECRET", "")
+	t.Setenv("INTERNAL_API_TOKEN", strings.Repeat("i", 32))
+	t.Setenv("MODEL_BASE_URL", "https://model.example/v1")
+	t.Setenv("MODEL_API_KEY", "test-key")
+	t.Setenv("MODEL_NAME", "test-model")
+	for _, token := range []string{"short", strings.Repeat("i", 32)} {
+		t.Setenv("ADMIN_API_TOKEN", token)
+		if _, err := Load("worker"); err == nil || !strings.Contains(err.Error(), "ADMIN_API_TOKEN") {
+			t.Fatal(err)
+		}
+	}
+	for _, token := range []string{"", strings.Repeat("a", 32)} {
+		t.Setenv("ADMIN_API_TOKEN", token)
+		c, err := Load("worker")
+		if err != nil || c.AdminToken != token {
+			t.Fatal(err)
+		}
+	}
+}
+
 func TestSummaryEffortSettings(t *testing.T) {
 	t.Setenv("QQ_APP_ID", "test-app")
 	t.Setenv("QQ_APP_SECRET", "")

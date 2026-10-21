@@ -125,7 +125,8 @@ func (g *Gateway) Send(ctx context.Context, request domain.SendRequest) error {
 		if ctx.Err() != nil {
 			return ErrExpired
 		}
-		body := map[string]any{"msg_type": 0, "content": part.text, "msg_id": request.Event.MessageID, "msg_seq": part.seq}
+		body := textMessageBody(part.text, isMarkdown(request.Text))
+		body["msg_id"], body["msg_seq"] = request.Event.MessageID, part.seq
 		if part.media != nil {
 			info, err := g.upload(ctx, path, *part.media)
 			if err != nil {
@@ -134,6 +135,7 @@ func (g *Gateway) Send(ctx context.Context, request domain.SendRequest) error {
 			body["msg_type"] = 7
 			body["media"] = map[string]string{"file_info": info}
 			delete(body, "content")
+			delete(body, "markdown")
 		}
 		if err := g.api(ctx, http.MethodPost, path+"/messages", body, nil); err != nil {
 			return err
@@ -268,6 +270,10 @@ func (s *RemoteSender) Send(ctx context.Context, request domain.SendRequest) err
 	}
 	defer response.Body.Close()
 	if response.StatusCode/100 != 2 {
+		if status, e := strconv.Atoi(response.Header.Get("X-QQ-Status")); e == nil {
+			code, _ := strconv.Atoi(response.Header.Get("X-QQ-Code"))
+			return &APIError{Status: status, Code: code}
+		}
 		body, _ := io.ReadAll(io.LimitReader(response.Body, 512))
 		if response.StatusCode == http.StatusConflict {
 			return ErrAmbiguous

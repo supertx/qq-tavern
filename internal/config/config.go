@@ -11,16 +11,17 @@ import (
 )
 
 type Config struct {
-	AppID, AppSecret, RedisURL, Listen, InternalToken, Database, GatewayURL                     string
-	QQAPIBase, QQTokenURL                                                                       string
-	Observe                                                                                     bool
-	ModelBase, ModelKey, Model, Mode, Effort, SummaryModel, SummaryEffort                       string
-	ImageBase, ImageKey, ImageModel, SpeechBase, SpeechKey, SpeechModel, SpeechVoice, SearchURL string
-	MaxConcurrency                                                                              int
+	AdminToken                                                                                                  string
+	AppID, AppSecret, RedisURL, Listen, InternalToken, Database, GatewayURL                                     string
+	QQAPIBase, QQTokenURL                                                                                       string
+	Observe                                                                                                     bool
+	ModelBase, ModelKey, Model, Mode, Effort, SummaryModel, SummaryEffort                                       string
+	ImageBase, ImageKey, ImageModel, ImageEditModel, SpeechBase, SpeechKey, SpeechModel, SpeechVoice, SearchURL string
+	MaxConcurrency                                                                                              int
 }
 
 func Load(role string) (Config, error) {
-	c := Config{AppID: os.Getenv("QQ_APP_ID"), AppSecret: os.Getenv("QQ_APP_SECRET"), RedisURL: env("REDIS_URL", "redis://redis:6379/0"), Listen: env("LISTEN_ADDR", ":8080"), InternalToken: os.Getenv("INTERNAL_API_TOKEN"), Database: env("DATABASE_PATH", "/data/"+role+".db"), GatewayURL: env("GATEWAY_URL", "http://gateway:8080"), QQAPIBase: env("QQ_API_BASE", "https://api.bot.qq.com"), QQTokenURL: env("QQ_TOKEN_URL", "https://api.bot.qq.com/app/getAppAccessToken"), Observe: os.Getenv("QQ_OBSERVE_GROUP_MESSAGES") == "true", ModelBase: os.Getenv("MODEL_BASE_URL"), ModelKey: os.Getenv("MODEL_API_KEY"), Model: os.Getenv("MODEL_NAME"), Mode: env("MODEL_API_MODE", "responses"), Effort: env("REASONING_EFFORT", "medium"), SummaryModel: os.Getenv("SUMMARY_MODEL"), SummaryEffort: env("SUMMARY_REASONING_EFFORT", "medium"), ImageBase: os.Getenv("IMAGE_BASE_URL"), ImageKey: os.Getenv("IMAGE_API_KEY"), ImageModel: os.Getenv("IMAGE_MODEL"), SpeechBase: os.Getenv("SPEECH_BASE_URL"), SpeechKey: os.Getenv("SPEECH_API_KEY"), SpeechModel: os.Getenv("SPEECH_MODEL"), SpeechVoice: env("SPEECH_VOICE", "alloy"), SearchURL: os.Getenv("SEARXNG_URL"), MaxConcurrency: 4}
+	c := Config{AppID: os.Getenv("QQ_APP_ID"), AppSecret: os.Getenv("QQ_APP_SECRET"), RedisURL: env("REDIS_URL", "redis://redis:6379/0"), Listen: env("LISTEN_ADDR", ":8080"), InternalToken: os.Getenv("INTERNAL_API_TOKEN"), Database: env("DATABASE_PATH", "/data/"+role+".db"), GatewayURL: env("GATEWAY_URL", "http://gateway:8080"), QQAPIBase: env("QQ_API_BASE", "https://api.bot.qq.com"), QQTokenURL: env("QQ_TOKEN_URL", "https://api.bot.qq.com/app/getAppAccessToken"), Observe: os.Getenv("QQ_OBSERVE_GROUP_MESSAGES") == "true", ModelBase: os.Getenv("MODEL_BASE_URL"), ModelKey: os.Getenv("MODEL_API_KEY"), Model: os.Getenv("MODEL_NAME"), Mode: env("MODEL_API_MODE", "responses"), Effort: env("REASONING_EFFORT", "medium"), SummaryModel: os.Getenv("SUMMARY_MODEL"), SummaryEffort: env("SUMMARY_REASONING_EFFORT", "medium"), ImageBase: os.Getenv("IMAGE_BASE_URL"), ImageKey: os.Getenv("IMAGE_API_KEY"), ImageModel: os.Getenv("IMAGE_MODEL"), ImageEditModel: os.Getenv("IMAGE_EDIT_MODEL"), SpeechBase: os.Getenv("SPEECH_BASE_URL"), SpeechKey: os.Getenv("SPEECH_API_KEY"), SpeechModel: os.Getenv("SPEECH_MODEL"), SpeechVoice: env("SPEECH_VOICE", "alloy"), SearchURL: os.Getenv("SEARXNG_URL"), MaxConcurrency: 4}
 	if v := os.Getenv("MAX_CONCURRENCY"); v != "" {
 		n, err := strconv.Atoi(v)
 		if err != nil || n < 1 || n > 16 {
@@ -52,6 +53,10 @@ func Load(role string) (Config, error) {
 	if c.AppSecret != "" {
 		return c, errors.New("QQ_APP_SECRET must only be supplied to gateway")
 	}
+	c.AdminToken = os.Getenv("ADMIN_API_TOKEN")
+	if c.AdminToken != "" && (len(c.AdminToken) < 32 || c.AdminToken == c.InternalToken) {
+		return c, errors.New("ADMIN_API_TOKEN must contain at least 32 characters and differ from INTERNAL_API_TOKEN")
+	}
 	if c.ModelBase == "" || c.ModelKey == "" || c.Model == "" {
 		return c, errors.New("MODEL_BASE_URL, MODEL_API_KEY and MODEL_NAME are required for worker")
 	}
@@ -76,7 +81,7 @@ func Load(role string) (Config, error) {
 			}
 		}
 	}
-	if (c.ImageBase != "" || c.ImageKey != "" || c.ImageModel != "") && (c.ImageBase == "" || c.ImageKey == "" || c.ImageModel == "") {
+	if (c.ImageBase != "" || c.ImageKey != "" || c.ImageModel != "" || c.ImageEditModel != "") && (c.ImageBase == "" || c.ImageKey == "" || c.ImageModel == "") {
 		return c, errors.New("IMAGE_BASE_URL, IMAGE_API_KEY and IMAGE_MODEL must be configured together")
 	}
 	if (c.SpeechBase != "" || c.SpeechKey != "" || c.SpeechModel != "") && (c.SpeechBase == "" || c.SpeechKey == "" || c.SpeechModel == "") {

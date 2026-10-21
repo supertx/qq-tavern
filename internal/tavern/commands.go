@@ -21,7 +21,7 @@ type Result struct {
 
 func New(store *state.Store) *Service { return &Service{store: store} }
 
-const help = `酒馆设置只影响当前会话，群成员均可修改群公共设置。
+const help = `酒馆设置只影响当前会话。QQ 修改能力默认关闭，由管理接口按命令组开放。
 /角色 [名称|描述|性格|场景 内容]
 /群规则 [设置|添加 内容]，/群规则 清空
 /世界书：查看条目与编辑语法
@@ -32,6 +32,8 @@ const help = `酒馆设置只影响当前会话，群成员均可修改群公共
 /群记忆、/记忆状态、/修改记录、/撤销修改 编号
 /重置上下文：清除聊天历史和摘要，保留长期记忆
 /当前模型：查看模型与思考强度
+/会话信息：查看管理接口使用的会话标识
+/导入：JSON 文件批量导入说明
 世界书预算按字符估算；记住不代表每轮都会注入。`
 
 func splitCommand(text string) (string, string) {
@@ -60,9 +62,15 @@ func (s *Service) Handle(ctx context.Context, e domain.Event) (Result, error) {
 	text := strings.TrimSpace(e.Text)
 	command, args := splitCommand(text)
 	known := map[string]bool{"/角色状态": true, "/好感度": true, "/状态记录": true, "/状态设置": true, "/状态重置": true, "/状态项": true, "/酒馆": true, "/角色": true, "/群规则": true, "/世界书": true, "/摘要": true, "/记住": true, "/记到群": true, "/记忆": true, "/群记忆": true, "/记忆状态": true, "/修改记录": true, "/撤销修改": true, "/重置上下文": true}
+	known["/会话信息"] = true
 	natural, explicit := explicitMemory(text)
 	if !known[command] && !explicit {
 		return Result{}, nil
+	}
+	groups := commandGroups(e, command, args, natural, explicit)
+	ctx = state.WithCommandGroups(ctx, groups...)
+	if err := s.store.CheckCommandGroups(ctx, groups...); err != nil {
+		return reply("设置未保存：" + err.Error()), nil
 	}
 	bound, err := s.store.BindActive(ctx, e.Scope)
 	if err != nil {
@@ -74,6 +82,9 @@ func (s *Service) Handle(ctx context.Context, e domain.Event) (Result, error) {
 		return Result{}, err
 	}
 	result, err := s.handle(ctx, e, command, args, natural, explicit, snap)
+	if errors.Is(err, state.ErrForbidden) {
+		return reply("设置未保存：" + err.Error()), nil
+	}
 	if errors.Is(err, state.ErrConflict) {
 		return reply("设置已被其他成员或后台更新，请查看最新内容后重试。"), nil
 	}
@@ -95,6 +106,8 @@ func (s *Service) handle(ctx context.Context, e domain.Event, command, args, nat
 		return reply("已保存到当前会话，下一轮对话生效。"), nil
 	}
 	switch command {
+	case "/会话信息":
+		return reply(fmt.Sprintf("会话类型：%s\n会话 ID：%s\n角色 ID：%d\n该标识用于管理接口，不是管理令牌。", e.Scope.Kind, e.Scope.Key(), snap.Role.ID)), nil
 	case "/酒馆":
 		return reply(fmt.Sprintf("%s\n当前角色：%s；设置版本：%d；世界书：%d 条。", help+"\n"+statusHelp, shown(snap.Config.Character.Name), snap.Config.Version, len(snap.Config.Entries))), nil
 	case "/角色":

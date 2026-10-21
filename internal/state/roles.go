@@ -212,6 +212,13 @@ func (s *Store) SelectRole(ctx context.Context, e domain.Event, name string, cre
 		return err
 	}
 	defer tx.Rollback()
+	group := RoleSwitch
+	if create {
+		group = RoleEdit
+	}
+	if err = authorizeCommand(ctx, tx, group); err != nil {
+		return err
+	}
 	if _, err = ensureActive(ctx, tx, e.Scope); err != nil {
 		return err
 	}
@@ -246,8 +253,11 @@ func (s *Store) SelectRole(ctx context.Context, e domain.Event, name string, cre
 	} else if err != nil {
 		return err
 	}
-	if _, err = tx.ExecContext(ctx, `UPDATE tavern_active_role SET role_id=? WHERE scope=?`, r.ID, e.Scope.Key()); err != nil {
-		return err
+	qqCommand, _ := ctx.Value(qqCommandKey{}).(bool)
+	if !create || !qqCommand {
+		if _, err = tx.ExecContext(ctx, `UPDATE tavern_active_role SET role_id=?,version=version+1 WHERE scope=?`, r.ID, e.Scope.Key()); err != nil {
+			return err
+		}
 	}
 	if _, err = tx.ExecContext(ctx, `INSERT INTO tavern_operation(scope,event) VALUES(?,?)`, e.Scope.Key(), e.ID); err != nil {
 		return err

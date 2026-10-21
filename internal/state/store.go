@@ -36,9 +36,9 @@ func Open(path string) (*Store, error) {
 		db.Close()
 		return nil, err
 	}
-	if version > 2 {
+	if version > 4 {
 		db.Close()
-		return nil, fmt.Errorf("database schema version %d is newer than supported version 2", version)
+		return nil, fmt.Errorf("database schema version %d is newer than supported version 4", version)
 	}
 	_, err = db.Exec(`PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000; PRAGMA foreign_keys=ON;
 CREATE TABLE IF NOT EXISTS tavern_config(scope TEXT PRIMARY KEY, bot TEXT NOT NULL, kind TEXT NOT NULL, conversation TEXT NOT NULL, data TEXT NOT NULL, version INTEGER NOT NULL);
@@ -56,6 +56,14 @@ CREATE TABLE IF NOT EXISTS tavern_activation(scope TEXT NOT NULL, member TEXT NO
 		return nil, err
 	}
 	if err = migrateRoles(db, version); err != nil {
+		db.Close()
+		return nil, err
+	}
+	if err = migrateRecent(db, version); err != nil {
+		db.Close()
+		return nil, err
+	}
+	if err = migrateAdmin(db, version); err != nil {
 		db.Close()
 		return nil, err
 	}
@@ -311,6 +319,9 @@ func (s *Store) SaveSummary(ctx context.Context, scope domain.Scope, expectedVer
 		return err
 	}
 	defer tx.Rollback()
+	if err = authorizeCommand(ctx, tx, ContextManage); err != nil {
+		return err
+	}
 	current, err := readSummary(ctx, tx, s.key(scope))
 	if err != nil {
 		return err

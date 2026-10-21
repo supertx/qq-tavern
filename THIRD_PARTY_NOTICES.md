@@ -1,10 +1,10 @@
 # 第三方软件声明
 
-核对日期：2026-10-15。本项目自有新增代码的 MIT 许可证不替代下列组件的许可证。分发本项目二进制时，请同时保留本文件和 `third_party/licenses/` 中的完整声明。
+核对日期：2026-10-16。本项目自有新增代码的 MIT 许可证不替代下列组件的许可证。分发本项目二进制时，请同时保留本文件和 `third_party/licenses/` 中的完整声明。
 
 ## 二进制与本项目测试使用的 Go 模块
 
-依据 `go list -m all`、Linux amd64/arm64 的 `go list -deps ./cmd/qq-tavern`，以及 Darwin arm64 的运行／测试依赖输出核对。Linux 目标使用 10 个外部模块；Darwin 额外使用 `go-isatty`、`go-strftime`，合计 12 个。本项目的 `go list -deps -test ./...` 没有额外的第三方测试模块。
+依据 `go list -m all`、Linux amd64/arm64 的 `go list -deps ./cmd/qq-tavern`，以及 Darwin arm64 的运行／测试依赖输出核对。Linux 目标使用 11 个外部模块；Darwin 额外使用 `go-isatty`、`go-strftime`，合计 13 个。本项目的 `go list -deps -test ./...` 没有额外的第三方测试模块。
 
 许可证标识根据对应版本的实际声明归类。目录中的文本保留原样；嵌套组件另列，不能仅凭模块根许可证概括所有内容。
 
@@ -18,6 +18,7 @@
 | `github.com/ncruces/go-strftime` | `v0.1.9` | MIT；Darwin 依赖 | [LICENSE](third_party/licenses/github.com__ncruces__go-strftime@v0.1.9/LICENSE) |
 | `github.com/remyoudompheng/bigfft` | `v0.0.0-20230129092748-24d4a6f8daec` | BSD-3-Clause | [LICENSE](third_party/licenses/github.com__remyoudompheng__bigfft@v0.0.0-20230129092748-24d4a6f8daec/LICENSE) |
 | `golang.org/x/exp` | `v0.0.0-20230315142452-642cacee5cc0` | BSD-3-Clause | [LICENSE](third_party/licenses/golang.org__x__exp@v0.0.0-20230315142452-642cacee5cc0/LICENSE) |
+| `golang.org/x/image` | `v0.25.0` | BSD-3-Clause，附专利授权 | [LICENSE](third_party/licenses/golang.org__x__image@v0.25.0/LICENSE)、[PATENTS](third_party/licenses/golang.org__x__image@v0.25.0/PATENTS) |
 | `golang.org/x/sys` | `v0.31.0` | BSD-3-Clause | [LICENSE](third_party/licenses/golang.org__x__sys@v0.31.0/LICENSE) |
 | `modernc.org/libc` | `v1.61.13` | 主体 BSD-3-Clause；musl、netdb 及其他声明见下文 | [LICENSE](third_party/licenses/modernc.org__libc@v1.61.13/LICENSE) |
 | `modernc.org/mathutil` | `v1.7.1` | BSD-3-Clause | [LICENSE](third_party/licenses/modernc.org__mathutil@v1.7.1/LICENSE) |
@@ -33,7 +34,7 @@ SQLite 声明仅提取对应模块生成文件中的完整许可注释块，没�
 
 ## 模块图中的上游工具／测试依赖
 
-以下 19 个模块出现在 `go list -m all` 的模块图中，但不在上述目标的本项目运行或本项目测试包依赖集中。本项目没有复制、编译或分发它们的源码；列出版本用于说明模块图与实际链接集合的区别，不据此对其许可作未经核对的推断。
+以下 20 个模块出现在 `go list -m all` 的模块图中，但不在上述目标的本项目运行或本项目测试包依赖集中。本项目没有复制、编译或分发它们的源码；列出版本用于说明模块图与实际链接集合的区别，不据此对其许可作未经核对的推断。
 
 | 模块 | 版本 |
 | --- | --- |
@@ -44,6 +45,7 @@ SQLite 声明仅提取对应模块生成文件中的完整许可注释块，没�
 | `github.com/kballard/go-shellquote` | `v0.0.0-20180428030007-95032a82bc51` |
 | `golang.org/x/mod` | `v0.19.0` |
 | `golang.org/x/sync` | `v0.7.0` |
+| `golang.org/x/text` | `v0.23.0` |
 | `golang.org/x/tools` | `v0.23.0` |
 | `lukechampine.com/uint128` | `v1.2.0` |
 | `modernc.org/cc/v3` | `v3.41.0` |

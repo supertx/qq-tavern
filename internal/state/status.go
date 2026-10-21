@@ -270,6 +270,9 @@ func (s *Store) SetStatus(ctx context.Context, e domain.Event, name string, valu
 		return err
 	}
 	defer tx.Rollback()
+	if err = authorizeCommand(ctx, tx, StatusManage); err != nil {
+		return err
+	}
 	if done, err := s.operationExists(ctx, tx, e); err != nil {
 		return err
 	} else if done {
@@ -359,6 +362,9 @@ func (s *Store) UpdateStatusSchema(ctx context.Context, e domain.Event, expected
 		return err
 	}
 	defer tx.Rollback()
+	if err = authorizeCommand(ctx, tx, StatusManage); err != nil {
+		return err
+	}
 	if done, err := s.operationExists(ctx, tx, e); err != nil {
 		return err
 	} else if done {
