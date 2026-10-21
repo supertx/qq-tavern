@@ -207,4 +207,4 @@ flowchart LR
 
 ## 许可与来源
 
-项目新增代码使用 [MIT 许可证](LICENSE)。第三方依赖保留各自许可，详见 [第三方声明](THIRD_PARTY_NOTICES.md) 和 [来源清单](docs/PROVENANCE.md)。图像素材说明见 [品牌素材](docs/assets/README.md)。
+项目新增代码使用 [MIT 许可证](LICENSE)。第三方依赖保留各自许可，详见 [第三方声明](THIRD_PARTY_NOTICES.md) 和 [来源清单](docs/PROVENANCE.md)。
